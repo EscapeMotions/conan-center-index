@@ -82,10 +82,10 @@ class OpenColorIOConan(ConanFile):
             Version(self.settings.compiler.version) >= "17.0":
             raise ConanInvalidConfiguration(f"{self.ref} < 2.0 not building on MSVC 2022")
 
-        if Version(self.version) >= "2.3.0" and \
-            self.settings.compiler == "clang" and \
-            self.settings.compiler.libcxx == "libc++":
-            raise ConanInvalidConfiguration(f"{self.ref} deosn't support clang with libc++")
+        # if Version(self.version) >= "2.3.0" and \
+        #     self.settings.compiler == "clang" and \
+        #     self.settings.compiler.libcxx == "libc++":
+        #     raise ConanInvalidConfiguration(f"{self.ref} deosn't support clang with libc++")
 
         # opencolorio>=2.2.0 requires minizip-ng with with_zlib
         if Version(self.version) >= "2.2.0" and \
