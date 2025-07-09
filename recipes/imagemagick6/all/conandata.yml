@@ -1,0 +1,4 @@
+sources:
+  "6.9.13-25":
+    url: "https://github.com/ImageMagick/ImageMagick6/archive/6.9.13-25.tar.gz"
+    sha256: "182872ab0a7dbb9b40b676f13a4f45d7931d313a66b3c983dfb2be40997b4041"
