@@ -64,6 +64,10 @@ class Libde265Conan(ConanFile):
         replace_in_file(self, os.path.join(self.source_folder, "CMakeLists.txt"),
                               "set(CMAKE_POSITION_INDEPENDENT_CODE ON)", "")
 
+    def build_requirements(self):
+        print('build_requirements() overriding cmake version')
+        self.tool_requires("cmake/3.31.6")
+
     def build(self):
         self._patch_sources()
         cmake = CMake(self)
