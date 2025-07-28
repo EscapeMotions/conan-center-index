@@ -1,0 +1,11 @@
+diff -u -r ./src/emitterutils.cpp ../src2/src/emitterutils.cpp
+--- ./src/emitterutils.cpp	2025-05-21 14:31:42.443313700 +0200
++++ ../src2/src/emitterutils.cpp	2025-05-21 14:32:39.595478600 +0200
+@@ -1,6 +1,7 @@
+ #include <algorithm>
+ #include <iomanip>
+ #include <sstream>
++#include <cstdint>
+ 
+ #include "emitterutils.h"
+ #include "exp.h"
