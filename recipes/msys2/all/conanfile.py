@@ -55,6 +55,7 @@ class MSYS2Conan(ConanFile):
         "additional_packages": None,
         "no_kill": False,
     }
+    running_in_msys_host = False
 
     short_paths = True
 
@@ -63,6 +64,11 @@ class MSYS2Conan(ConanFile):
 
     def package_id(self):
         del self.info.options.no_kill
+
+    def configure(self):
+        if os.environ.get("MSYSTEM"):
+            self.running_in_msys_host = True # Because we can't modify self.options.no_kill inside configure()
+            self.output.info("Detected running inside a host MSYS2 environment (MSYSTEM is set). Avoiding killing msys to keep the host msys terminal running.")
 
     def validate(self):
         if self.settings.os != "Windows":
@@ -75,6 +81,7 @@ class MSYS2Conan(ConanFile):
             destination=self.source_folder, strip_root=False) # Preserve tarball root dir (msys64/)
 
     def _update_pacman(self):
+        print('_update_pacman() begin')
         with chdir(self, os.path.join(self._msys_dir, "usr", "bin")):
             try:
                 self._kill_pacman()
@@ -89,10 +96,13 @@ class MSYS2Conan(ConanFile):
                 self.run('bash -l -c "cat /var/log/pacman.log || echo nolog"')
                 self._kill_pacman()
                 raise
+        print('_update_pacman() end')
 
     # https://github.com/msys2/MSYS2-packages/issues/1966
     def _kill_pacman(self):
-        if self.options.no_kill:
+        print('_kill_pacman() begin')
+        if self.options.no_kill or self.running_in_msys_host:
+            print('_kill_pacman() end')
             return
         if (self.settings.os == "Windows"):
             taskkill_exe = os.path.join(os.environ.get('SystemRoot'), 'system32', 'taskkill.exe')
@@ -119,6 +129,7 @@ class MSYS2Conan(ConanFile):
                     except OSError as e:
                         if e.errno == errno.ENOENT:
                             raise ConanException("Cannot kill pacman") from e
+        print('_kill_pacman() end')
 
     @property
     def _msys_dir(self):
@@ -130,6 +141,7 @@ class MSYS2Conan(ConanFile):
             self._do_build()
 
     def _do_build(self):
+        print('_do_build() begin no_kill:', self.options.no_kill, ' packages:', self.options.packages, ' additional_packages:', self.options.additional_packages)
         packages = []
         if self.options.packages:
             packages.extend(str(self.options.packages).split(","))
@@ -161,6 +173,7 @@ class MSYS2Conan(ConanFile):
         # Note: this is no longer needed when we exclusively support Conan 2 integrations
         replace_in_file(self, os.path.join(self._msys_dir, "etc", "profile"),
                               'PKG_CONFIG_PATH="', 'PKG_CONFIG_PATH="${PKG_CONFIG_PATH:+${PKG_CONFIG_PATH}:}')
+        print('_do_build() end')
 
     def package(self):
         excludes = None
