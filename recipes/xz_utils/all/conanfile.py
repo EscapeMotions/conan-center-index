@@ -78,7 +78,14 @@ class XZUtilsConan(ConanFile):
         if self._settings_build.os == "Windows" and not self._use_msbuild:
             self.win_bash = True
             if not self.conf.get("tools.microsoft.bash:path", check_type=str):
-                self.tool_requires("msys2/cci.latest")
+                if self.settings.compiler == "gcc":
+                    # packages_to_install = "winpthreads-git"
+                    packages_to_install = "mingw-w64-x86_64-winpthreads-git"
+                #     #  if self.settings.arch == "x86":
+                #     #      packages_to_install = "mingw-w64-i686-winpthreads-git"
+                #     self.output.info(f"Adding {packages_to_install} to MSYS2 installation packages") # Optional: for debugging
+                self.tool_requires("msys2/cci.latest", options={"additional_packages": packages_to_install})
+                # self.tool_requires("msys2/cci.latest")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -91,10 +98,15 @@ class XZUtilsConan(ConanFile):
         else:
             env = VirtualBuildEnv(self)
             env.generate()
+            
             tc = AutotoolsToolchain(self)
             tc.configure_args.append("--disable-doc")
             if self.settings.build_type == "Debug":
                 tc.configure_args.append("--enable-debug")
+            if self.settings.os == "Windows" and self.settings.compiler == "gcc":
+                 # Link against winpthreads on MinGW/MSYS2 for threading support
+                 tc.extra_ldflags.append("-lwinpthread")
+                 tc.extra_ldflags.append("-print-search-dirs")
             tc.generate()
 
     @property
