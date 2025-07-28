@@ -1,0 +1,12 @@
+--- config/cmake/ConfigureChecks.cmake	2025-05-21 23:42:03.868493600 +0200
++++ config/cmake/ConfigureChecks.cmake.new	2025-05-21 23:43:38.921240700 +0200
+@@ -450,6 +450,9 @@
+ CHECK_FUNCTION_EXISTS (tmpfile           ${HDF_PREFIX}_HAVE_TMPFILE)
+ CHECK_FUNCTION_EXISTS (asprintf          ${HDF_PREFIX}_HAVE_ASPRINTF)
+ CHECK_FUNCTION_EXISTS (vasprintf         ${HDF_PREFIX}_HAVE_VASPRINTF)
++if (MINGW AND WINDOWS)
++	SET(${HDF_PREFIX}_HAVE_VASPRINTF FALSE CACHE INTERNAL "Force disable vasprintf usage on MinGW + Windows") # Not sure if it's needed also with MinGW on Linux
++endif()
+ CHECK_FUNCTION_EXISTS (waitpid           ${HDF_PREFIX}_HAVE_WAITPID)
+ 
+ #-----------------------------------------------------------------------------
