@@ -79,7 +79,7 @@ class LibheifConan(ConanFile):
             self.requires("openh264/[>=2.4.1 <3]")
 
     def validate_build(self):
-        check_min_cppstd(self, "20" if Version(self.version) >= "1.19.0" else "11")
+        check_min_cppstd(self, "17" if Version(self.version) >= "1.19.0" else "11")
 
     def validate(self):
         check_min_cppstd(self, "11")
