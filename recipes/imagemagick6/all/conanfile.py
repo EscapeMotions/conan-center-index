@@ -113,7 +113,7 @@ class ImageMagick6Conan(ConanFile):
         if self.options.with_openexr:
             self.requires("openexr/3.1.9") # IM6 might need OpenEXR 2.x. Test carefully. e.g. 2.5.7
         if self.options.with_heic:
-            self.requires("libheif/1.16.2")
+            self.requires("libheif/[>=1.16.2 <=1.20.1]")
         if self.options.with_jbig:
             self.requires("jbig/20160605")
         if self.options.with_jpeg == "libjpeg":
@@ -121,15 +121,15 @@ class ImageMagick6Conan(ConanFile):
         elif self.options.with_jpeg == "libjpeg-turbo":
             self.requires("libjpeg-turbo/3.0.3")
         if self.options.with_openjp2:
-            self.requires("openjpeg/2.5.2")
+            self.requires("openjpeg/[>=2.5.2 <=2.5.3]")
         if self.options.with_pango:
             self.requires("pango/1.50.14") # This is quite new for IM6, might need older.
         if self.options.with_png:
-            self.requires("libpng/1.6.48")
+            self.requires("libpng/[>=1.6.48 <1.7]")
         if self.options.with_tiff:
             self.requires("libtiff/4.6.0")
         if self.options.with_webp:
-            self.requires("libwebp/1.3.2")
+            self.requires("libwebp/[>=1.3.2 <=1.5.0]")
         if self.options.with_xml2:
             self.requires("libxml2/2.12.7")
         if self.options.with_freetype:
