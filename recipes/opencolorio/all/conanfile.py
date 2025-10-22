@@ -64,10 +64,6 @@ class OpenColorIOConan(ConanFile):
         if self.settings.compiler == "gcc" and Version(self.settings.compiler.version) < "6.0":
             raise ConanInvalidConfiguration(f"{self.ref} requires gcc >= 6.0")
 
-        if self.settings.compiler == "clang" and self.settings.compiler.libcxx == "libc++":
-            raise ConanInvalidConfiguration(f"{self.ref} deosn't support clang with libc++")
-
-
     def build_requirements(self):
         self.tool_requires("cmake/[>=3.16]")
 
