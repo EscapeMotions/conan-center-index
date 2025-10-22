@@ -59,6 +59,8 @@ class OdbcConan(ConanFile):
 
     def generate(self):
         tc = AutotoolsToolchain(self)
+        env = tc.environment()
+        env.define("LDFLAGS", "-Wl,-headerpad_max_install_names")
         yes_no = lambda v: "yes" if v else "no"
         libtool_cppinfo = self.dependencies["libtool"].cpp_info.aggregated_components()
         tc.configure_args.extend([
@@ -72,7 +74,7 @@ class OdbcConan(ConanFile):
         if self.options.with_libiconv:
             libiconv_prefix = self.dependencies["libiconv"].package_folder
             tc.configure_args.append(f"--with-libiconv-prefix={libiconv_prefix}")
-        tc.generate()
+        tc.generate(env)
 
     def _patch_sources(self):
         apply_conandata_patches(self)
