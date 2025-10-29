@@ -1,6 +1,6 @@
 import os
 from conan import ConanFile
-from conan.tools.gnu import Autotools, AutotoolsToolchain, PkgConfigDeps
+from conan.tools.gnu import Autotools, AutotoolsToolchain, PkgConfigDeps, AutotoolsDeps
 from conan.tools.layout import basic_layout
 from conan.tools.files import get, rmdir, rm, copy, apply_conandata_patches
 from conan.tools.scm import Version
@@ -113,7 +113,7 @@ class ImageMagick6Conan(ConanFile):
         if self.options.with_openexr:
             self.requires("openexr/3.1.9") # IM6 might need OpenEXR 2.x. Test carefully. e.g. 2.5.7
         if self.options.with_heic:
-            self.requires("libheif/[>=1.16.2 <=1.20.1]")
+            self.requires("libheif/[>=1.16.2 <2]")
         if self.options.with_jbig:
             self.requires("jbig/20160605")
         if self.options.with_jpeg == "libjpeg":
@@ -121,15 +121,16 @@ class ImageMagick6Conan(ConanFile):
         elif self.options.with_jpeg == "libjpeg-turbo":
             self.requires("libjpeg-turbo/3.0.3")
         if self.options.with_openjp2:
-            self.requires("openjpeg/[>=2.5.2 <=2.5.3]")
+            self.requires("openjpeg/[>=2.5.2 <3]")
         if self.options.with_pango:
             self.requires("pango/1.50.14") # This is quite new for IM6, might need older.
         if self.options.with_png:
-            self.requires("libpng/[>=1.6.48 <1.7]")
+            self.requires("libpng/[>=1.6.48 <2]")
         if self.options.with_tiff:
             self.requires("libtiff/4.6.0")
+            self.requires("zstd/1.5.7")
         if self.options.with_webp:
-            self.requires("libwebp/[>=1.3.2 <=1.5.0]")
+            self.requires("libwebp/[>=1.3.2 <2]")
         if self.options.with_xml2:
             self.requires("libxml2/2.12.7")
         if self.options.with_freetype:
@@ -142,6 +143,8 @@ class ImageMagick6Conan(ConanFile):
     def generate(self):
         # Dependency virtual environments
         PkgConfigDeps(self).generate()
+        deps = AutotoolsDeps(self)
+        deps.generate()
 
         # AutotoolsToolchain to prepare configure arguments
         tc = AutotoolsToolchain(self)
@@ -335,6 +338,7 @@ class ImageMagick6Conan(ConanFile):
             self.cpp_info.components["MagickCore"].requires.append("libpng::libpng")
         if self.options.with_tiff:
             self.cpp_info.components["MagickCore"].requires.append("libtiff::libtiff")
+            self.cpp_info.components["MagickCore"].requires.append("zstd::zstd")
         if self.options.with_webp:
             self.cpp_info.components["MagickCore"].requires.append("libwebp::libwebp")
         if self.options.with_xml2:
