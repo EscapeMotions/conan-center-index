@@ -48,3 +48,7 @@ patches:
       "patch_file": "patches/ffmpeg-x86-optimization.patch"
       "patch_source": "https://packages.ubuntu.com/source/focal-updates/qtwebengine-opensource-src"
       "patch_type": "portability"
+    - "base_path": "qt5/qtbase"
+      "patch_description": "Fix build error with png when cross compiling to iOS"
+      "patch_file": "patches/fix-png-ios-compile-error.patch"
+      "patch_type": "conan"
