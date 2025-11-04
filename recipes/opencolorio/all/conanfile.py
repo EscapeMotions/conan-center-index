@@ -23,11 +23,13 @@ class OpenColorIOConan(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "use_sse": [True, False],
+        "with_apps": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
         "use_sse": True,
+        "with_apps": True,
     }
 
     def export_sources(self):
@@ -80,7 +82,7 @@ class OpenColorIOConan(ConanFile):
         # openexr 2.x provides Half library
         tc.variables["OCIO_USE_OPENEXR_HALF"] = True
 
-        tc.variables["OCIO_BUILD_APPS"] = True
+        tc.variables["OCIO_BUILD_APPS"] = self.options.get_safe("with_apps", True)
         tc.variables["OCIO_BUILD_DOCS"] = False
         tc.variables["OCIO_BUILD_TESTS"] = False
         tc.variables["OCIO_BUILD_GPU_TESTS"] = False
