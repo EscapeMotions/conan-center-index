@@ -62,6 +62,7 @@ class QtConan(ConanFile):
         "with_libalsa": [True, False],
         "with_openal": [True, False],
         "with_zstd": [True, False],
+        "with_zlib": [True, False],
         "with_gstreamer": [True, False],
         "with_pulseaudio": [True, False],
         "with_dbus": [True, False],
@@ -106,6 +107,7 @@ class QtConan(ConanFile):
         "with_libalsa": False,
         "with_openal": True,
         "with_zstd": True,
+        "with_zlib": True,
         "with_gstreamer": False,
         "with_pulseaudio": False,
         "with_dbus": False,
@@ -389,7 +391,8 @@ class QtConan(ConanFile):
             raise ConanInvalidConfiguration("sqlite3 option enable_column_metadata must be enabled for qt")
 
     def requirements(self):
-        self.requires("zlib/[>=1.2.11 <2]")
+        if self.options.with_zlib:
+            self.requires("zlib/[>=1.2.11 <2]")
         if self.options.openssl:
             self.requires("openssl/[>=1.1 <4]")
         if self.options.with_pcre2:
@@ -681,8 +684,6 @@ class QtConan(ConanFile):
             if module in self.options and not self.options.get_safe(module):
                 args.append("-skip " + module)
 
-        args.append("--zlib=system")
-
         # openGL
         opengl = self.options.get_safe("opengl", "no")
         if opengl == "no":
@@ -718,6 +719,7 @@ class QtConan(ConanFile):
         args.append("--sql-psql=" + ("yes" if self.options.with_pq else "no"))
         args.append("--sql-odbc=" + ("yes" if self.options.with_odbc else "no"))
         args.append("--zstd=" + ("yes" if self.options.with_zstd else "no"))
+        args.append("--zlib=" + ("system" if self.options.with_zlib else "qt"))
 
         if self.options.qtmultimedia:
             args.append("--alsa=" + ("yes" if self.options.get_safe("with_libalsa", False) else "no"))
@@ -1094,10 +1096,12 @@ Prefix = ..""")
                 requires.append("Core")
             self.cpp_info.components[componentname].requires = _get_corrected_reqs(requires)
 
-        core_reqs = ["zlib::zlib"]
+        core_reqs = []
+        if self.options.with_zlib:
+            core_reqs.append("zlib::zlib")
         if self.options.with_pcre2:
             core_reqs.append("pcre2::pcre2")
-        if self.options.with_doubleconversion:
+        if self.options.with_doubleconversion and not self.options.multiconfiguration:
             core_reqs.append("double-conversion::double-conversion")
         if self.options.get_safe("with_icu", False):
             core_reqs.append("icu::icu")
@@ -1113,7 +1117,7 @@ Prefix = ..""")
         ]
         self.cpp_info.components["qtCore"].set_property("pkg_config_custom_content", "\n".join(pkg_config_vars))
 
-        if self.settings.build_type != "Debug":
+        if self.options.multiconfiguration or self.settings.build_type != "Debug":
             self.cpp_info.components['qtCore'].defines.append('QT_NO_DEBUG')
 
         if self.settings.os == "Windows":
@@ -1132,9 +1136,9 @@ Prefix = ..""")
             gui_reqs = []
             if self.options.with_dbus:
                 gui_reqs.append("DBus")
-            if self.options.with_freetype:
+            if self.options.with_freetype and not self.options.multiconfiguration:
                 gui_reqs.append("freetype::freetype")
-            if self.options.with_libpng:
+            if self.options.with_libpng and not self.options.multiconfiguration:
                 gui_reqs.append("libpng::libpng")
             if self.options.get_safe("with_fontconfig", False):
                 gui_reqs.append("fontconfig::fontconfig")
@@ -1151,9 +1155,9 @@ Prefix = ..""")
                     gui_reqs.append("moltenvk::moltenvk")
             if self.options.with_harfbuzz:
                 gui_reqs.append("harfbuzz::harfbuzz")
-            if self.options.with_libjpeg == "libjpeg-turbo":
+            if self.options.with_libjpeg == "libjpeg-turbo" and not self.options.multiconfiguration:
                 gui_reqs.append("libjpeg-turbo::libjpeg-turbo")
-            if self.options.with_libjpeg == "libjpeg":
+            if self.options.with_libjpeg == "libjpeg" and not self.options.multiconfiguration:
                 gui_reqs.append("libjpeg::libjpeg")
             if self.options.with_md4c:
                 gui_reqs.append("md4c::md4c")
@@ -1172,9 +1176,8 @@ Prefix = ..""")
                 self.cpp_info.components["qtFontDatabaseSupport"].frameworks.append("AppKit" if self.settings.os == "Macos" else "UIKit")
             if self.options.get_safe("with_fontconfig"):
                 self.cpp_info.components["qtFontDatabaseSupport"].requires.append("fontconfig::fontconfig")
-            if self.options.get_safe("with_freetype"):
+            if self.options.get_safe("with_freetype") and not self.options.multiconfiguration:
                 self.cpp_info.components["qtFontDatabaseSupport"].requires.append("freetype::freetype")
-
 
             _create_module("ThemeSupport", ["Core", "Gui"])
             _create_module("AccessibilitySupport", ["Core", "Gui"])
