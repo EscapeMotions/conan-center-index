@@ -42,6 +42,7 @@ class OpenImageIOConan(ConanFile):
         "with_openvdb": [True, False],
         "with_ptex": [True, False],
         "with_libwebp": [True, False],
+        "with_tools": [True, False],
     }
     default_options = {
         "shared": False,
@@ -62,6 +63,7 @@ class OpenImageIOConan(ConanFile):
         "with_openvdb": False,  # FIXME: broken on M1
         "with_ptex": True,
         "with_libwebp": True,
+        "with_tools": True,
     }
 
     def export_sources(self):
@@ -145,7 +147,7 @@ class OpenImageIOConan(ConanFile):
 
         # CMake options
         tc.variables["CMAKE_DEBUG_POSTFIX"] = ""  # Needed for 2.3.x.x+ versions
-        tc.variables["OIIO_BUILD_TOOLS"] = True
+        tc.variables["OIIO_BUILD_TOOLS"] = self.options.with_tools
         tc.variables["OIIO_BUILD_TESTS"] = False
         tc.variables["BUILD_DOCS"] = False
         tc.variables["INSTALL_DOCS"] = False
