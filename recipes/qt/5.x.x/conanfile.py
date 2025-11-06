@@ -466,7 +466,7 @@ class QtConan(ConanFile):
             self.requires("krb5/1.18.3") # conan-io/conan-center-index#4102
         if self.options.get_safe("with_atspi"):
             self.requires("at-spi2-core/2.51.0")
-        if self.options.get_safe("with_md4c", False):
+        if self.options.get_safe("with_md4c", False) and not self.options.multiconfiguration:
             self.requires("md4c/0.4.8")
 
     def package_id(self):
@@ -1159,7 +1159,7 @@ Prefix = ..""")
                 gui_reqs.append("libjpeg-turbo::libjpeg-turbo")
             if self.options.with_libjpeg == "libjpeg" and not self.options.multiconfiguration:
                 gui_reqs.append("libjpeg::libjpeg")
-            if self.options.with_md4c:
+            if self.options.with_md4c and not self.options.multiconfiguration:
                 gui_reqs.append("md4c::md4c")
             _create_module("Gui", gui_reqs)
             _add_build_module("qtGui", self._cmake_qt5_private_file("Gui"))
