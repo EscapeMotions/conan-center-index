@@ -802,6 +802,9 @@ class QtConan(ConanFile):
         elif self.settings.os == "Android":
             args += [f"-android-ndk-platform android-{self.settings.os.api_level}"]
             args += [f"-android-abis {android_abi(self)}"]
+        elif self.settings.os == "iOS":
+            args += ["-no-framework"]
+            args.append(f"-sdk {self.settings.os.sdk}")
 
         if self.settings.get_safe("compiler.libcxx") == "libstdc++":
             args += ["-D_GLIBCXX_USE_CXX11_ABI=0"]
@@ -1088,7 +1091,7 @@ Prefix = ..""")
             self.cpp_info.components[componentname].set_property("cmake_target_name", f"Qt5::{pluginname}")
             self.cpp_info.components[componentname].names["cmake_find_package"] = pluginname
             self.cpp_info.components[componentname].names["cmake_find_package_multi"] = pluginname
-            if not self.options.shared:
+            if not self.options.shared or self.settings.os in ["iOS", "tvOS"]: # iOS does not support regular shared library plugins
                 self.cpp_info.components[componentname].libs = [libname + libsuffix]
             self.cpp_info.components[componentname].libdirs = [os.path.join("plugins", plugintype)]
             self.cpp_info.components[componentname].includedirs = []
@@ -1231,7 +1234,7 @@ Prefix = ..""")
                     "IOKit", "IOSurface", "Metal", "QuartzCore"]
             elif self.settings.os in ["iOS", "tvOS"]:
                 _create_plugin("QIOSIntegrationPlugin", "qios", "platforms", ["ClipboardSupport", "FontDatabaseSupport", "GraphicsSupport"])
-                self.cpp_info.components["QIOSIntegrationPlugin"].frameworks = ["AudioToolbox", "Foundation", "Metal",
+                self.cpp_info.components["qtQIOSIntegrationPlugin"].frameworks = ["AudioToolbox", "Foundation", "Metal",
                     "MobileCoreServices", "OpenGLES", "QuartzCore", "UIKit"]
             elif self.settings.os == "watchOS":
                 _create_plugin("QMinimalIntegrationPlugin", "qminimal", "platforms", ["EventDispatcherSupport", "FontDatabaseSupport"])
