@@ -107,7 +107,7 @@ class ImageMagick6Conan(ConanFile):
         if self.options.with_bzlib:
             self.requires("bzip2/1.0.8")
         if self.options.with_lzma:
-            self.requires("xz_utils/5.4.5")
+            self.requires("xz_utils/[>=5.4.5 <6]")
         if self.options.with_lcms:
             self.requires("lcms/2.16")
         if self.options.with_openexr:
@@ -127,7 +127,7 @@ class ImageMagick6Conan(ConanFile):
         if self.options.with_png:
             self.requires("libpng/[>=1.6.48 <2]")
         if self.options.with_tiff:
-            self.requires("libtiff/4.6.0")
+            self.requires("libtiff/[>=4.6.0 <5]")
             self.requires("zstd/1.5.7")
         if self.options.with_webp:
             self.requires("libwebp/[>=1.3.2 <2]")
