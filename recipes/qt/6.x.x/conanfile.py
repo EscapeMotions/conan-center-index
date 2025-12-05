@@ -487,6 +487,9 @@ class QtConan(ConanFile):
         env.unset("VCPKG_ROOT")
         env.prepend_path("PKG_CONFIG_PATH", self.generators_folder)
         env.vars(self).save_script("conanbuildenv_pkg_config_path")
+
+        tc = CMakeToolchain(self, generator="Ninja")
+
         if self.settings_build.os == "Macos":
             # On macOS, SIP resets DYLD_LIBRARY_PATH injected by VirtualBuildEnv & VirtualRunEnv
             dyld_library_path = "$DYLD_LIBRARY_PATH"
@@ -500,7 +503,21 @@ class QtConan(ConanFile):
             save(self, "bash_env", f'export DYLD_LIBRARY_PATH="{dyld_library_path}"')
             env.define_path("BASH_ENV", os.path.abspath("bash_env"))
 
-        tc = CMakeToolchain(self, generator="Ninja")
+            if not cross_building(self):
+                # On macOS, SIP resets DYLD_LIBRARY_PATH injected by VirtualBuildEnv & VirtualRunEnv.
+                # Qt builds several executables (moc etc) which are called later on during build of
+                # libraries, and these executables link to several external dependencies in requirements().
+                # If these external libs are shared, moc calls fail because its dylib dependencies
+                # are not found (unless they can be accidentally found in system paths).
+                # So the workaround is to add libdirs of these external dependencies to LC_RPATH
+                # of runtime artifacts.
+                dyld_library_paths_list = VirtualRunEnv(self).vars().get("DYLD_LIBRARY_PATH", "").split(":")
+                existing_rpath_list = tc.variables.get("CMAKE_INSTALL_RPATH", "").split(";")
+
+                # Combine rpaths, filter out empty strings, and use a set to remove duplicate paths
+                all_rpaths = {path for path in (existing_rpath_list + dyld_library_paths_list) if path}
+                tc.variables["CMAKE_INSTALL_RPATH"] = ";".join(all_rpaths)
+                tc.variables["CMAKE_BUILD_WITH_INSTALL_RPATH"] = True
 
         tc.absolute_paths = True
 
