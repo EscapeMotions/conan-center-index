@@ -1259,6 +1259,11 @@ Prefix = ..""")
                     _create_module("XcbQpa", xcb_qpa_reqs, has_include_dir=False)
                     _create_plugin("QXcbIntegrationPlugin", "qxcb", "platforms", ["Core", "Gui", "XcbQpa"])
 
+        if self.options.with_libjpeg != False:
+            _create_plugin("QJpegPlugin", "qjpeg", "imageformats", [])
+        _create_plugin("QGifPlugin", "qgif", "imageformats", [])
+        _create_plugin("QIcoPlugin", "qico", "imageformats", [])
+
         if self.options.with_sqlite3:
             _create_plugin("QSQLiteDriverPlugin", "qsqlite", "sqldrivers", ["sqlite3::sqlite3"])
         if self.options.with_pq:
