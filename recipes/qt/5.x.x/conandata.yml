@@ -52,3 +52,7 @@ patches:
       "patch_description": "Fix build error with png when cross compiling to iOS"
       "patch_file": "patches/fix-png-ios-compile-error.patch"
       "patch_type": "conan"
+    - "base_path": "qt5/qtbase"
+      "patch_description": "Fix configure error with macos sdk 26, which removed AGL framework"
+      "patch_file": "patches/fix-remove-agl-from-mkspecs.patch"
+      "patch_type": "conan"
