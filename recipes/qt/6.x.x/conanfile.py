@@ -440,7 +440,18 @@ class QtConan(ConanFile):
         if self.options.qtwayland:
             self.tool_requires("wayland/1.22.0")
         if cross_building(self):
-            self.tool_requires(f"qt/{self.version}")
+            # The host Qt provides the build tools (moc/rcc/qmlaotstats/qsb/...) that the cross
+            # build imports via QT_HOST_PATH. By default it would be built with this recipe's bare
+            # defaults (all submodules OFF), so any submodule the target enables would fail to find
+            # its host tool -- e.g. qt5compat pulls in qtdeclarative, whose qmlaotstats/qmlcachegen
+            # live in the Qt6QmlTools package that a minimal host Qt never builds. Forward the
+            # target's submodule selection so the host Qt carries the matching tools.
+            # (Pass the option values as-is; conan stringifies them -- do NOT call bool() on a
+            # conan option value, "False" is a truthy object.)
+            host_submodule_options = {m: self.options.get_safe(m)
+                                      for m in self._submodules
+                                      if self.options.get_safe(m) is not None}
+            self.tool_requires(f"qt/{self.version}", options=host_submodule_options)
 
     def generate(self):
         ms = VirtualBuildEnv(self)
@@ -537,7 +548,16 @@ class QtConan(ConanFile):
 
         tc.variables["FEATURE_system_zlib"] = "ON"
 
-        tc.variables["INPUT_opengl"] = self.options.get_safe("opengl", "no")
+        opengl_input = self.options.get_safe("opengl", "no")
+        # Apple mobile (iOS/tvOS) has no desktop OpenGL. This recipe's "opengl" option no
+        # longer exposes the "es2" value (valid: no/desktop/dynamic), but Qt itself still
+        # accepts INPUT_opengl=es2 -- it enables the opengles2 feature and disables
+        # opengl_desktop (qtbase/src/gui/configure.cmake). Passing the "desktop" default
+        # through forces opengl_desktop ON and breaks configuration.
+        # Map the default to es2 on these targets so OpenGL ES support is built.
+        if self.settings.os in ("iOS", "tvOS") and opengl_input == "desktop":
+            opengl_input = "es2"
+        tc.variables["INPUT_opengl"] = opengl_input
 
         # openSSL
         if not self.options.openssl:
@@ -626,7 +646,11 @@ class QtConan(ConanFile):
             tc.variables[f"FEATURE_{feature}"] = "OFF"
 
 
-        if self.settings.os == "Macos":
+        if is_apple_os(self):
+            # Disable Qt's framework packaging on ALL Apple OSes, not just macOS. On iOS/tvOS/
+            # watchOS Qt6 otherwise defaults to building (static) frameworks, but package_info
+            # declares every module as a plain lib (libs=["Qt6<Module>"]) and conan's CMakeDeps
+            # can't resolve a .framework bundle as a library (e.g. "Qt6SvgWidgets not found").
             tc.variables["FEATURE_framework"] = "OFF"
         elif self.settings.os == "Android":
             tc.variables["CMAKE_ANDROID_NATIVE_API_LEVEL"] = self.settings.os.api_level
@@ -653,8 +677,14 @@ class QtConan(ConanFile):
             tc.cache_variables["QT_HOST_PATH"] = self.dependencies.direct_build["qt"].package_folder
             # Stand-in for Qt6CoreTools - which is loaded for the executable targets
             tc.cache_variables["CMAKE_PROJECT_Qt_INCLUDE"] = os.path.join(self.dependencies.direct_build["qt"].package_folder, self._cmake_executables_file)
-            # Ensure tools for host are always built
-            tc.cache_variables["QT_FORCE_BUILD_TOOLS"] = True
+            # NOTE: QT_FORCE_BUILD_TOOLS does NOT build the host tools (those always come from
+            # QT_HOST_PATH above). Per Qt's qt_check_if_tools_will_be_built(), when cross-compiling
+            # will_build_tools defaults to FALSE (host tools are imported).
+            # QT_FORCE_BUILD_TOOLS=TRUE forces building an extra copy of moc/rcc/Bootstrap FOR THE TARGET. That's impossible on iOS.
+            # So only force target-side tool builds on non-mobile cross-builds (e.g. macOS x86_64->arm64).
+            apple_mobile = is_apple_os(self) and self.settings.os != "Macos"
+            if not apple_mobile:
+                tc.cache_variables["QT_FORCE_BUILD_TOOLS"] = True
 
         tc.variables["FEATURE_pkg_config"] = "ON"
         if self.settings.compiler == "gcc" and self.settings.get_safe("build_type") == "Debug" and not self.options.shared:
@@ -943,6 +973,10 @@ class QtConan(ConanFile):
             targets.append("repc")
         if self.options.get_safe("qtscxml"):
             targets.append("qscxmlc")
+        # When cross-building, host-style tools (moc/rcc/...) are not built for the target
+        # (see QT_FORCE_BUILD_TOOLS gating). They must run on the build host anyway, so fall
+        # back to the host Qt provided via tool_requires / QT_HOST_PATH.
+        host_qt_folder = self.dependencies.direct_build["qt"].package_folder if cross_building(self) else None
         for target in targets:
             exe_path = None
             for path_ in [f"bin/{target}{extension}",
@@ -951,14 +985,23 @@ class QtConan(ConanFile):
                 if os.path.isfile(os.path.join(self.package_folder, path_)):
                     exe_path = path_
                     break
+            if exe_path:
+                # Tool built in this package: reference it relatively so the package stays relocatable.
+                imported_location = f"${{CMAKE_CURRENT_LIST_DIR}}/../../../{exe_path}"
+            elif host_qt_folder:
+                host_exe = next((os.path.join(host_qt_folder, p)
+                                 for p in [f"bin/{target}{extension}",
+                                           f"libexec/{target}{extension}",
+                                           f"lib/{target}{extension}"]
+                                 if os.path.isfile(os.path.join(host_qt_folder, p))), None)
+                assert host_exe, f"Could not find executable {target}{extension} in target package {self.package_folder} or host Qt {host_qt_folder}"
+                imported_location = host_exe
             else:
                 assert False, f"Could not find executable {target}{extension} in {self.package_folder}"
-            if not exe_path:
-                self.output.warning(f"Could not find path to {target}{extension}")
             filecontents += textwrap.dedent(f"""\
                 if(NOT TARGET ${{QT_CMAKE_EXPORT_NAMESPACE}}::{target})
                     add_executable(${{QT_CMAKE_EXPORT_NAMESPACE}}::{target} IMPORTED)
-                    set_target_properties(${{QT_CMAKE_EXPORT_NAMESPACE}}::{target} PROPERTIES IMPORTED_LOCATION ${{CMAKE_CURRENT_LIST_DIR}}/../../../{exe_path})
+                    set_target_properties(${{QT_CMAKE_EXPORT_NAMESPACE}}::{target} PROPERTIES IMPORTED_LOCATION {imported_location})
                 endif()
                 """)
 
@@ -1262,6 +1305,15 @@ class QtConan(ConanFile):
                     self.cpp_info.components["QIOSIntegrationPlugin"].frameworks = [
                         "AudioToolbox", "Foundation", "Metal", "QuartzCore", "UIKit", "CoreGraphics"
                     ]
+                    if self.options.get_safe("opengl", "no") != "no":
+                        # qios builds qioscontext.mm (EAGLContext + GL ES funcs) under
+                        # CONDITION QT_FEATURE_opengl; those symbols live in OpenGLES.framework.
+                        # Qt5's recipe always listed OpenGLES here; the Qt6 recipe dropped it
+                        # (it assumed Metal-only iOS). Declare it so it propagates to consumers,
+                        # and via qtGui so their own GL ES calls resolve too. (On iOS only desktop
+                        # GL is unavailable, so any non-"no" opengl here means GLES.)
+                        self.cpp_info.components["QIOSIntegrationPlugin"].frameworks.append("OpenGLES")
+                        self.cpp_info.components["qtGui"].frameworks.append("OpenGLES")
                     if self.settings.os != "tvOS":
                         # https://github.com/qt/qtbase/blob/v6.6.1/src/plugins/platforms/ios/CMakeLists.txt#L66-L68
                         self.cpp_info.components["QIOSIntegrationPlugin"].frameworks += [
@@ -1612,14 +1664,18 @@ class QtConan(ConanFile):
                     self.cpp_info.components["qtNetwork"].frameworks.append("Network")
                 # https://github.com/qt/qtbase/blob/v6.6.1/src/network/CMakeLists.txt#L216-L221
                 # qtcore requires "_OBJC_CLASS_$_NSApplication" and more, which are in "Cocoa" framework
-                self.cpp_info.components["qtCore"].frameworks.append("Cocoa")
+                # (macOS only -- absent from the iOS/tvOS/watchOS SDKs, which use UIKit)
+                if self.settings.os == "Macos":
+                    self.cpp_info.components["qtCore"].frameworks.append("Cocoa")
                 # https://github.com/qt/qtbase/blob/v6.8.3/src/corelib/CMakeLists.txt#L712-L717
                 self.cpp_info.components["qtCore"].frameworks.append("UniformTypeIdentifiers")
                 self.cpp_info.components["qtNetwork"].system_libs.append("resolv")
                 if self.options.with_gssapi:
                     # https://github.com/qt/qtbase/blob/v6.6.1/src/network/CMakeLists.txt#L250C56-L253
                     self.cpp_info.components["qtNetwork"].frameworks.append("GSS")
-                if self.options.gui and self.options.widgets:
+                # cups + ApplicationServices are macOS-only (absent from the iOS/tvOS/watchOS SDKs);
+                # QtPrintSupport on those platforms doesn't link them.
+                if self.settings.os == "Macos" and self.options.gui and self.options.widgets:
                     # https://github.com/qt/qtbase/blob/v6.6.1/src/printsupport/CMakeLists.txt#L52-L63
                     self.cpp_info.components["qtPrintSupport"].system_libs.append("cups")
                     self.cpp_info.components["qtPrintSupport"].frameworks.append("ApplicationServices")
