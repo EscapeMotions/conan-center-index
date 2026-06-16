@@ -1,0 +1,17 @@
+--- a/meson.build
++++ b/meson.build
+@@ -825,6 +825,14 @@
+ endif
+ 
+ foreach f : functions
++  if f == 'pipe2' and host_system in ['darwin', 'ios']
++    # pipe2() does not exist on Apple platforms (macOS becomes 'darwin', iOS/tvOS/
++    # watchOS/simulator are reclassified to 'ios' above). When cross-compiling to
++    # the iOS simulator, meson's has_function link probe yields a false positive,
++    # so config.h gets HAVE_PIPE2=1 and glib-unixprivate.h then calls an undeclared
++    # pipe2(), failing the build (and linking, since the symbol is absent). Skip it.
++    continue
++  endif
+   if cc.has_function(f)
+     define = 'HAVE_' + f.underscorify().to_upper()
+     glib_conf.set(define, 1)
