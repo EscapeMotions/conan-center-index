@@ -1357,6 +1357,12 @@ class QtConan(ConanFile):
         if self.settings.os in ['Linux', 'FreeBSD'] and self.options.with_gssapi:
             networkReqs.append("krb5::krb5-gssapi")
         _create_module("Network", networkReqs)
+        _create_plugin("QTlsBackendCertOnlyPlugin", "qcertonlybackend", "tls", ["Network"])
+        if self.options.openssl:
+            _create_plugin("QTlsBackendOpenSSLPlugin", "qopensslbackend", "tls", ["Network", "openssl::openssl"])
+        if is_apple_os(self):
+            _create_plugin("QSecureTransportBackendPlugin", "qsecuretransportbackend", "tls", ["Network"])
+            self.cpp_info.components["qtQSecureTransportBackendPlugin"].frameworks = ["Security", "CoreFoundation"]
         _create_module("Sql", [])
         _create_module("Test", [])
         if self.options.widgets:
