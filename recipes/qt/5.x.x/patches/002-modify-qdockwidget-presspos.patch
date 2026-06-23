@@ -1,0 +1,42 @@
+diff --git a/src/widgets/widgets/qdockwidget.cpp b/src/widgets/widgets/qdockwidget.cpp
+index 93362f4..4824d34 100644
+--- a/src/widgets/widgets/qdockwidget.cpp
++++ b/src/widgets/widgets/qdockwidget.cpp
+@@ -1756,6 +1756,23 @@ QWidget *QDockWidget::titleBarWidget() const
+     return layout->widgetForRole(QDockWidgetLayout::TitleBar);
+ }
+ 
++void QDockWidget::setPressPos(QPoint p)
++
++{
++    Q_D(QDockWidget);
++    if (d->state != 0)
++        d->state->pressPos = p;
++}
++
++QPoint QDockWidget::pressPos()
++{
++    Q_D(QDockWidget);
++    if (d->state != 0)
++        return d->state->pressPos;
++
++    return QPoint(0, 0);
++}
++
+ QT_END_NAMESPACE
+ 
+ #include "qdockwidget.moc"
+diff --git a/src/widgets/widgets/qdockwidget.h b/src/widgets/widgets/qdockwidget.h
+index 36dff4d..3b0c0e3 100644
+--- a/src/widgets/widgets/qdockwidget.h
++++ b/src/widgets/widgets/qdockwidget.h
+@@ -108,6 +108,9 @@ public:
+     QAction *toggleViewAction() const;
+ #endif
+ 
++    void setPressPos(QPoint p);
++    QPoint pressPos();
++
+ Q_SIGNALS:
+     void featuresChanged(QDockWidget::DockWidgetFeatures features);
+     void topLevelChanged(bool topLevel);

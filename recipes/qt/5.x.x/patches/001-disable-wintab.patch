@@ -1,0 +1,74 @@
+diff --git a/src/plugins/platforms/windows/qwindowscontext.cpp b/src/plugins/platforms/windows/qwindowscontext.cpp
+index 3e0059c..f25b249 100644
+--- a/src/plugins/platforms/windows/qwindowscontext.cpp
++++ b/src/plugins/platforms/windows/qwindowscontext.cpp
+@@ -266,9 +266,6 @@ struct QWindowsContextPrivate {
+     QWindowsMimeConverter m_mimeConverter;
+     QWindowsScreenManager m_screenManager;
+     QSharedPointer<QWindowCreationContext> m_creationContext;
+-#if QT_CONFIG(tabletevent)
+-    QScopedPointer<QWindowsTabletSupport> m_tabletSupport;
+-#endif
+     const HRESULT m_oleInitializeResult;
+     QWindow *m_lastActiveWindow = nullptr;
+     bool m_asyncExpose = false;
+@@ -315,10 +312,6 @@ QWindowsContext::QWindowsContext() :
+ 
+ QWindowsContext::~QWindowsContext()
+ {
+-#if QT_CONFIG(tabletevent)
+-    d->m_tabletSupport.reset(); // Destroy internal window before unregistering classes.
+-#endif
+-
+     if (d->m_powerNotification)
+         UnregisterPowerSettingNotification(d->m_powerNotification);
+ 
+@@ -369,12 +362,7 @@ bool QWindowsContext::initTouch(unsigned integrationOptions)
+ bool QWindowsContext::initTablet(unsigned integrationOptions)
+ {
+     Q_UNUSED(integrationOptions);
+-#if QT_CONFIG(tabletevent)
+-    d->m_tabletSupport.reset(QWindowsTabletSupport::create());
+-    return true;
+-#else
+     return false;
+-#endif
+ }
+ 
+ bool QWindowsContext::initPointer(unsigned integrationOptions)
+@@ -443,12 +431,7 @@ bool QWindowsContext::initPowerNotificationHandler()
+ 
+ void QWindowsContext::setTabletAbsoluteRange(int a)
+ {
+-#if QT_CONFIG(tabletevent)
+-    if (!d->m_tabletSupport.isNull())
+-        d->m_tabletSupport->setAbsoluteRange(a);
+-#else
+     Q_UNUSED(a)
+-#endif
+ }
+ 
+ void QWindowsContext::setDetectAltGrModifier(bool a)
+@@ -892,11 +875,7 @@ QWindowsScreenManager &QWindowsContext::screenManager()
+ 
+ QWindowsTabletSupport *QWindowsContext::tabletSupport() const
+ {
+-#if QT_CONFIG(tabletevent)
+-    return d->m_tabletSupport.data();
+-#else
+     return 0;
+-#endif
+ }
+ 
+ /*!
+@@ -1414,10 +1393,6 @@ bool QWindowsContext::windowsProc(HWND hwnd, UINT message,
+             *result = LRESULT(MA_NOACTIVATE);
+             return true;
+         }
+-#if QT_CONFIG(tabletevent)
+-        if (!d->m_tabletSupport.isNull())
+-            d->m_tabletSupport->notifyActivate();
+-#endif // QT_CONFIG(tabletevent)
+         if (platformWindow->testFlag(QWindowsWindow::BlockedByModal))
+             if (const QWindow *modalWindow = QGuiApplication::modalWindow()) {
+                 QWindowsWindow *platformWindow = QWindowsWindow::windowsWindowOf(modalWindow);
