@@ -1,0 +1,31 @@
+diff --git a/src/widgets/styles/qstylesheetstyle.cpp b/src/widgets/styles/qstylesheetstyle.cpp
+index 11d6f46..2637539 100644
+--- a/src/widgets/styles/qstylesheetstyle.cpp
++++ b/src/widgets/styles/qstylesheetstyle.cpp
+@@ -2775,11 +2775,6 @@ static void updateObjects(const QList<const QObject *>& objects)
+         if (auto widget = qobject_cast<QWidget*>(const_cast<QObject*>(object))) {
+             widget->style()->polish(widget);
+             QCoreApplication::sendEvent(widget, &event);
+-            QList<const QObject *> children;
+-            children.reserve(widget->children().size() + 1);
+-            for (auto child: qAsConst(widget->children()))
+-                children.append(child);
+-            updateObjects(children);
+         }
+     }
+ }
+@@ -2960,9 +2955,12 @@ void QStyleSheetStyle::polish(QPalette &pal)
+ 
+ void QStyleSheetStyle::repolish(QWidget *w)
+ {
++    // updateObjects() no longer recurses; enumerate the full subtree here so a per-widget
++    // stylesheet update still repolishes all descendants.
++    const QList<QObject *> descendants = w->findChildren<QObject *>();
+     QList<const QObject *> children;
+-    children.reserve(w->children().size() + 1);
+-    for (auto child: qAsConst(w->children()))
++    children.reserve(descendants.size() + 1);
++    for (auto child: qAsConst(descendants))
+         children.append(child);
+     children.append(w);
+     styleSheetCaches->styleSheetCache.remove(w);
