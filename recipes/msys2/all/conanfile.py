@@ -77,9 +77,20 @@ class MSYS2Conan(ConanFile):
 
     def config_options(self):
         default_packages = "base-devel,binutils,gcc"
-        if self.settings_target is not None and self.settings_target.arch == "armv8":
-            # The mingw-w64-cross-mingwarm64-gcc contains tools required to target arm64
-            default_packages += ",mingw-w64-cross-mingwarm64-gcc"
+        if self.settings_target is not None:
+            arch = str(self.settings_target.arch)
+            compiler = str(self.settings_target.get_safe("compiler", default="gcc"))
+            if arch == "armv8":
+                # cross-compiler for arm64 targets
+                default_packages += ",mingw-w64-cross-mingwarm64-gcc"
+            elif arch == "x86_64":
+                # Install the Windows-native compiler matching the target compiler setting.
+                # Without this, builds fall back to MSYS GCC which lacks _WIN32 and
+                # produces POSIX-targeting binaries incompatible with Windows APIs.
+                if compiler == "clang":
+                    default_packages += ",mingw-w64-x86_64-clang"
+                else:  # gcc or unspecified
+                    default_packages += ",mingw-w64-x86_64-gcc"
         self.options.packages = default_packages
 
     def validate_build(self):
@@ -222,9 +233,16 @@ class MSYS2Conan(ConanFile):
         self.conf_info.define("tools.microsoft.bash:path", os.path.join(msys_bin, "bash.exe"))
 
         if self.settings_target is not None and \
-            self.settings_target.os == "Windows" and \
-            self.settings_target.arch == "armv8":
-            # Expose /opt/bin to PATH, so that aarch64-w64-mingw32- prefixed tools can be found
-            # Define autotools host/build triplet so that the right tools are used
-            self.cpp_info.bindirs.insert(0, os.path.join(msys_root, "opt", "bin"))
-            self.conf_info.define("tools.gnu:host_triplet", "aarch64-w64-mingw32")
+            self.settings_target.os == "Windows":
+            arch = str(self.settings_target.arch)
+            compiler = str(self.settings_target.get_safe("compiler", default="gcc"))
+            if arch == "armv8":
+                # Expose /opt/bin to PATH, so that aarch64-w64-mingw32- prefixed tools can be found
+                # Define autotools host/build triplet so that the right tools are used
+                self.cpp_info.bindirs.insert(0, os.path.join(msys_root, "opt", "bin"))
+                self.conf_info.define("tools.gnu:host_triplet", "aarch64-w64-mingw32")
+            elif arch == "x86_64":
+                # Prepend the native Windows-targeting compiler bin dir so it wins over MSYS usr/bin.
+                # MinGW64/Clang64 GCC defines _WIN32; MSYS GCC does not, which breaks Windows-API code.
+                native_env = "clang64" if compiler == "clang" else "mingw64"
+                self.cpp_info.bindirs.insert(0, os.path.join(msys_root, native_env, "bin"))
