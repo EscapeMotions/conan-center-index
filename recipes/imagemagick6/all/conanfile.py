@@ -91,10 +91,10 @@ class ImageMagick6Conan(ConanFile):
         # For simplicity, assuming C sources or that dependencies handle C++ standard.
 
     def validate(self):
-        if self.settings.os == "Windows":
+        if self.settings.os == "Windows" and self.settings.compiler != "gcc":
             raise ConanInvalidConfiguration(
                 "This recipe currently supports ImageMagick 6 on macOS (and Linux) via Autotools. "
-                "Windows build is not supported with this configuration."
+                "Windows build is only supported via MSYS2/GCC, not with this configuration."
             )
         if self.options.with_pango and self.settings.os == "Macos":
             self.output.warning("Building ImageMagick with Pango on macOS might require X11/Quartz or specific setup.")
@@ -135,6 +135,10 @@ class ImageMagick6Conan(ConanFile):
             self.requires("libxml2/2.12.7")
         if self.options.with_freetype:
             self.requires("freetype/2.13.2")
+
+    def build_requirements(self):
+        if self.settings_build.os == "Windows":
+            self.win_bash = True
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -199,6 +203,11 @@ class ImageMagick6Conan(ConanFile):
             # tc.extra_ldflags.append("-headerpad_max_install_names")
             tc.extra_ldflags.append("-Wl,-headerpad_max_install_names")
             # tc.extra_linker_flags.append("-Wl,-headerpad_max_install_names")
+
+        if self.settings.compiler == "gcc":
+            # IM6 declares bzip2 function pointers as common symbols in multiple TUs;
+            # GCC 10+ defaults to -fno-common which causes duplicate symbol errors at link time.
+            tc.extra_cflags.append("-fcommon")
 
         tc.make_args.append("V=1")
         tc.configure_args.extend(configure_args)
