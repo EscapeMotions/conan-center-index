@@ -56,3 +56,6 @@ patches:
     - "base_path": "qt5/qtbase"
       "patch_description": "QStyleSheetStyle: drop the O(N*depth) updateObjects() recursion (huge repolish cost on DPI/screen change); repolish(QWidget*) enumerates the full subtree itself so per-widget restyles stay correct"
       "patch_file": "patches/004-qstylesheetstyle-remove-updateobjects-recursion.patch"
+    - "base_path": "qt5/qttools"
+      "patch_description": "Fix incompatible pointer type cast for _spawnvp in qcollectiongenerator (GCC 14+ treats -Wincompatible-pointer-types as error)"
+      "patch_file": "patches/fix-qcollectiongenerator-spawnvp-cast.patch"

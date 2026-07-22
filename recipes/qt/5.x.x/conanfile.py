@@ -193,7 +193,12 @@ class QtConan(ConanFile):
         if self.settings.compiler in ["gcc", "clang"] and Version(self.settings.compiler.version) < "5.3":
             del self.options.with_mysql
         if self.settings.os == "Windows":
-            self.options.opengl = "dynamic"
+            if self.settings.compiler == "gcc":
+                # "dynamic" (ANGLE) requires EGL headers not available in stock MinGW/MSYS2.
+                # Desktop OpenGL (WGL) is the correct choice for those builds.
+                self.options.opengl = "desktop"
+            else:
+                self.options.opengl = "dynamic"
             del self.options.with_gssapi
         if self.settings.os != "Linux":
             self.options.qtwayland = False
