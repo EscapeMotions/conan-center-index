@@ -768,15 +768,16 @@ class FFMpegConan(ConanFile):
         autotools = Autotools(self)
         autotools.configure()
         if self.settings.os == "Windows":
-            # configure's check_mathfunc for roundf fails at link time on MinGW/MSYS2
-            # with "ld returned 66" even though roundf IS declared extern in math.h.
+            # configure's check_mathfunc link tests fail with "ld returned 66" on
+            # MinGW/MSYS2 for several math functions that ARE declared extern in math.h.
             # GCC 16 then errors ("static declaration follows non-static") when libm.h
-            # tries to provide the fallback static inline. Force the correct value.
+            # tries to provide the static inline fallback. Force the correct values.
             config_h = os.path.join(self.build_folder, "config.h")
-            replace_in_file(self, config_h,
-                            "#define HAVE_ROUNDF 0",
-                            "#define HAVE_ROUNDF 1",
-                            strict=False)
+            for func in ("ROUNDF", "ERF", "RINT", "TRUNC"):
+                replace_in_file(self, config_h,
+                                f"#define HAVE_{func} 0",
+                                f"#define HAVE_{func} 1",
+                                strict=False)
         if self.settings.os == "Windows" and not is_msvc(self):
             # VirtualRunEnv (scope="build") prepends Conan's runtime bin dirs to PATH so
             # that configure's link-and-run tests can find the dependency DLLs. A side
