@@ -775,7 +775,8 @@ class FFMpegConan(ConanFile):
             config_h = os.path.join(self.build_folder, "config.h")
             replace_in_file(self, config_h,
                             "#define HAVE_ROUNDF 0",
-                            "#define HAVE_ROUNDF 1")
+                            "#define HAVE_ROUNDF 1",
+                            strict=False)
         autotools.make()
 
     def package(self):
