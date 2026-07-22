@@ -108,6 +108,8 @@ class XZUtilsConan(ConanFile):
                 # sandbox should only apply to the tools, so if the tools are enabled
                 # the sandboxing features will be enabled.
                 tc.cache_variables["XZ_SANDBOX"] = "no"
+            if self.settings.os == "Windows":
+                tc.cache_variables["XZ_NLS"] = False
             tc.generate()
         else:
             tc = AutotoolsToolchain(self)
