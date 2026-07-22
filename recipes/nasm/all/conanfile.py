@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.env import VirtualBuildEnv
+from conan.tools.env import VirtualBuildEnv, Environment
 from conan.tools.files import apply_conandata_patches, chdir, copy, export_conandata_patches, get, replace_in_file, rmdir
 from conan.tools.gnu import Autotools, AutotoolsToolchain
 from conan.tools.layout import basic_layout
@@ -76,6 +76,18 @@ class NASMConan(ConanFile):
             elif self.settings.arch == "x86_64":
                 tc.extra_cflags.append("-m64")
             tc.generate()
+            if self._settings_build.os == "Windows" and \
+                    self.conf.get("tools.microsoft.bash:subsystem", check_type=str) == "msys2":
+                # Strawberry Perl (tool_require) prepends its bin dir to PATH first.
+                # That dir contains GCC runtime DLLs (libgcc_s_seh-1.dll etc.) from an
+                # older GCC version, which shadow MSYS2 GCC 16's own DLLs and cause
+                # cc1.exe to crash silently with exit code 1.
+                # Re-prepend the MSYS2 native compiler bin so the right DLLs win.
+                compiler = str(self.settings.get_safe("compiler", default="gcc"))
+                native_dir = "clang64" if compiler == "clang" else "mingw64"
+                mingw_env = Environment()
+                mingw_env.prepend_path("PATH", f"/{native_dir}/bin")
+                mingw_env.vars(self).save_script("conan_nasm_native_first")
 
     def build(self):
         apply_conandata_patches(self)
