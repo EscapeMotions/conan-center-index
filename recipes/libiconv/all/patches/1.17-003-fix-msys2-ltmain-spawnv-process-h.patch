@@ -1,0 +1,14 @@
+--- a/build-aux/ltmain.sh
++++ b/build-aux/ltmain.sh
+@@ -5796,9 +5796,11 @@
+ #else
+ # include <unistd.h>
+ # include <stdint.h>
+ # ifdef __CYGWIN__
+ #  include <io.h>
++#  include <process.h>
++#  define _spawnv spawnv
+ # endif
+ #endif
+ #include <malloc.h>
+ #include <stdarg.h>

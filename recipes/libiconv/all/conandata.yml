@@ -12,3 +12,5 @@ sources:
 patches:
   "1.17":
     - patch_file: "patches/1.17-001-fix-error-function-declaration-without-prototype.patch"
+    - patch_file: "patches/1.17-002-fix-msys2-sys-stat-lfs-cygwin-guard.patch"
+    - patch_file: "patches/1.17-003-fix-msys2-ltmain-spawnv-process-h.patch"
