@@ -777,7 +777,25 @@ class FFMpegConan(ConanFile):
                             "#define HAVE_ROUNDF 0",
                             "#define HAVE_ROUNDF 1",
                             strict=False)
-        autotools.make()
+        if self.settings.os == "Windows" and not is_msvc(self):
+            # VirtualRunEnv (scope="build") prepends Conan's runtime bin dirs to PATH so
+            # that configure's link-and-run tests can find the dependency DLLs. A side
+            # effect is that Conan's libiconv-2.dll appears in PATH before MinGW's copy in
+            # /mingw64/bin. GCC's cc1.exe loads libiconv-2.dll at startup for charset
+            # support; loading Conan's incompatible build causes it to crash silently
+            # (make reports "Error 1", no compiler output) on a random source file per run.
+            # Fix: re-prepend the GCC bin dir so the MSYS2 runtime DLLs win over Conan's.
+            gcc_exe = shutil.which("gcc")
+            if gcc_exe:
+                from conan.tools.env import Environment as _Env
+                _env = _Env()
+                _env.prepend_path("PATH", os.path.dirname(gcc_exe))
+                with _env.vars(self).apply():
+                    autotools.make()
+            else:
+                autotools.make()
+        else:
+            autotools.make()
 
     def package(self):
         copy(self, "LICENSE.md", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
