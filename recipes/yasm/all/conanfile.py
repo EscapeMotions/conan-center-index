@@ -54,6 +54,9 @@ class YASMConan(ConanFile):
             "--disable-rpath",
             "--disable-nls",
         ])
+        # yasm 1.3.0 uses 'false'/'true' as enum constants in libyasm/bitvect.h:86,
+        # which became reserved keywords in C23 (GCC 14+ defaults to C23).
+        tc.extra_cflags.append("-std=c17")
         tc.generate()
 
     def _generate_cmake(self):
