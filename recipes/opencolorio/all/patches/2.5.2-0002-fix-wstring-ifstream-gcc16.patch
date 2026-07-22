@@ -1,0 +1,12 @@
+diff --git src/OpenColorIO/transforms/FileTransform.cpp src/OpenColorIO/transforms/FileTransform.cpp
+index a1b2c3d4..b2c3d4e5 100644
+--- src/OpenColorIO/transforms/FileTransform.cpp
++++ src/OpenColorIO/transforms/FileTransform.cpp
+@@ -218,6 +218,6 @@ std::unique_ptr<std::istream> getLutData(const Config& config, const std::string
+
+     // Default behavior. Return file stream.
+     return std::unique_ptr<std::istream>(new std::ifstream(
+-        Platform::filenameToUTF(filepath), mode));
++        Platform::filenameToUTF(filepath).c_str(), mode));
+ }
+
