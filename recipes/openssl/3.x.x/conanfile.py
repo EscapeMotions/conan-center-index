@@ -148,6 +148,23 @@ class OpenSSLConan(ConanFile):
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
+        # MinGW: <windows.h> does not pull in <wchar.h>, and _alloca is MSVC-only;
+        # use __builtin_alloca which is always available in GCC/Clang without headers.
+        replace_in_file(self, os.path.join(self.source_folder, "apps", "lib", "win32_init.c"),
+                        "#include <string.h>",
+                        "#include <string.h>\n"
+                        "#include <wchar.h>\n"
+                        "#if defined(__GNUC__) && !defined(_alloca)\n"
+                        "# define _alloca(n) __builtin_alloca(n)\n"
+                        "#endif")
+        # MSYS GCC defines neither OPENSSL_SYS_WINDOWS nor the MinGW macros, so the
+        # existing guard does not exclude it even though ipi_spec_dst does not exist
+        # on Windows. Add __MSYS__ to the exclusion list.
+        replace_in_file(self, os.path.join(self.source_folder, "crypto", "bio", "bss_dgram.c"),
+                        "#if !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_CYGWIN) "
+                        "&& !defined(__FreeBSD__) && !defined(__QNX__)",
+                        "#if !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_CYGWIN) "
+                        "&& !defined(__FreeBSD__) && !defined(__QNX__) && !defined(__MSYS__)")
 
     @property
     def _target(self):
