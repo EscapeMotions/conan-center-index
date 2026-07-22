@@ -131,7 +131,10 @@ class B2Conan(ConanFile):
         self.output.info("Build engine..")
         command = ""
         b2_toolset = self.options.toolset
-        use_windows_commands = os.name == 'nt'
+        # MSYS2 sets MSYSTEM; use Unix build script but expect .exe output
+        is_msys2 = bool(os.environ.get('MSYSTEM'))
+        use_windows_commands = os.name == 'nt' and not is_msys2
+        use_windows_binary = os.name == 'nt'
         if b2_toolset == 'auto':
             if use_windows_commands:
                 # For windows auto detection it can evaluate to a msvc version
@@ -152,7 +155,12 @@ class B2Conan(ConanFile):
                                     b2_vcvars = os.path.join(
                                         kv.split('=')[1].strip(), 'Auxiliary', 'Build', 'vcvars32.bat')
                                     command += '"'+b2_vcvars+'" && '
-        command += "build" if use_windows_commands else "./build.sh"
+        if use_windows_commands:
+            command += "build"
+        elif is_msys2:
+            command += "sh ./build.sh"
+        else:
+            command += "./build.sh"
 
         cxxflags = ""
         if self._is_macos_intel_or_arm(self.settings):
@@ -181,7 +189,7 @@ class B2Conan(ConanFile):
 
         self.output.info("Install..")
         command = os.path.join(
-            self._b2_engine_dir, "b2.exe" if use_windows_commands else "b2")
+            self._b2_engine_dir, "b2.exe" if use_windows_binary else "b2")
         if b2_toolset not in ["auto", "cxx", "cross-cxx"]:
             command += " toolset=" + str(b2_toolset)
         full_command = \
