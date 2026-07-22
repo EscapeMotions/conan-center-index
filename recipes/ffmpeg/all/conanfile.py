@@ -785,16 +785,14 @@ class FFMpegConan(ConanFile):
             # /mingw64/bin. GCC's cc1.exe loads libiconv-2.dll at startup for charset
             # support; loading Conan's incompatible build causes it to crash silently
             # (make reports "Error 1", no compiler output) on a random source file per run.
-            # Fix: re-prepend the GCC bin dir so the MSYS2 runtime DLLs win over Conan's.
-            gcc_exe = shutil.which("gcc")
-            if gcc_exe:
-                from conan.tools.env import Environment as _Env
-                _env = _Env()
-                _env.prepend_path("PATH", os.path.dirname(gcc_exe))
-                with _env.vars(self).apply():
-                    autotools.make()
-            else:
-                autotools.make()
+            # Fix: the PATH override must happen inside the shell *after* conanbuild.sh has
+            # already been sourced by conanfile.run(), so we inline it as a shell command.
+            jobs = self.conf.get("tools.build:jobs", default=os.cpu_count())
+            with chdir(self, self.build_folder):
+                self.run(
+                    f'export PATH="$(dirname $(which gcc)):$PATH" && make -j{jobs}',
+                    env="conanbuild"
+                )
         else:
             autotools.make()
 
