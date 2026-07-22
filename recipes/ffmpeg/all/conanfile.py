@@ -767,6 +767,15 @@ class FFMpegConan(ConanFile):
                 shutil.copy("x264.pc", "libx264.pc")
         autotools = Autotools(self)
         autotools.configure()
+        if self.settings.os == "Windows":
+            # configure's check_mathfunc for roundf fails at link time on MinGW/MSYS2
+            # with "ld returned 66" even though roundf IS declared extern in math.h.
+            # GCC 16 then errors ("static declaration follows non-static") when libm.h
+            # tries to provide the fallback static inline. Force the correct value.
+            config_h = os.path.join(self.build_folder, "config.h")
+            replace_in_file(self, config_h,
+                            "#define HAVE_ROUNDF 0",
+                            "#define HAVE_ROUNDF 1")
         autotools.make()
 
     def package(self):
