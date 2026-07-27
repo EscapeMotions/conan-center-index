@@ -1,0 +1,21 @@
+--- a/src/widgets/kernel/qwidgetwindow.cpp	2026-07-24 12:57:44
++++ b/src/widgets/kernel/qwidgetwindow.cpp	2026-07-24 12:57:44
+@@ -1133,6 +1133,18 @@
+         ev.setAccepted(false);
+         QGuiApplication::forwardEvent(widget, &ev, event);
+         event->setAccepted(ev.isAccepted());
++    }
++
++    /**
++     * Synthesize Enter/Leave events if it is requested by the system and user
++     */
++    if (widget != qt_last_mouse_receiver &&
++        event->isAccepted() &&
++        !QWindowSystemInterfacePrivate::TabletEvent::platformSynthesizesMouse &&
++        qApp->testAttribute(Qt::AA_SynthesizeMouseForUnhandledTabletEvents)) {
++
++        QApplicationPrivate::dispatchEnterLeave(widget, qt_last_mouse_receiver, event->globalPosition());
++        qt_last_mouse_receiver = widget;
+     }
+ 
+     if (event->type() == QEvent::TabletRelease && event->buttons() == Qt::NoButton)

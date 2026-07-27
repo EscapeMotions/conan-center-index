@@ -1,0 +1,167 @@
+diff --git a/src/widgets/kernel/qtooltip.cpp b/src/widgets/kernel/qtooltip.cpp
+index 0c9db61f91..cc2e4a1d30 100644
+--- a/src/widgets/kernel/qtooltip.cpp
++++ b/src/widgets/kernel/qtooltip.cpp
+@@ -132,6 +132,8 @@ public:
+ 
+     bool fadingOut;
+ 
++    static QToolTip::TipPlacement tipPlacement;
++
+     void reuseTip(const QString &text, int msecDisplayTime, const QPoint &pos);
+     void hideTip();
+     void hideTipImmediately();
+@@ -167,6 +169,7 @@ private:
+ };
+ 
+ QTipLabel *QTipLabel::instance = nullptr;
++QToolTip::TipPlacement QTipLabel::tipPlacement = QToolTip::BottomRight;
+ 
+ QTipLabel::QTipLabel(const QString &text, const QPoint &pos, QWidget *w, int msecDisplayTime)
+ #ifndef QT_NO_STYLE_STYLESHEET
+@@ -330,7 +333,7 @@ bool QTipLabel::eventFilter(QObject *o, QEvent *e)
+     }
+ #endif
+     case QEvent::Leave:
+-        hideTip();
++        hideTipImmediately();
+         break;
+ 
+ 
+@@ -365,7 +368,7 @@ bool QTipLabel::eventFilter(QObject *o, QEvent *e)
+ 
+     case QEvent::MouseMove:
+         if (o == widget && !rect.isNull() && !rect.contains(static_cast<QMouseEvent*>(e)->pos()))
+-            hideTip();
++            hideTipImmediately();
+     default:
+         break;
+     }
+@@ -411,18 +414,82 @@ void QTipLabel::placeTip(const QPoint &pos, QWidget *w)
+         const QSize nativeSize = cursor ? cursor->size() : QSize(16, 16);
+         const QSize cursorSize = QHighDpi::fromNativePixels(nativeSize,
+                                                             platformScreen);
+-        QPoint offset(2, cursorSize.height());
+-        // assuming an arrow shape, we can just move to the side for very large cursors
+-        if (cursorSize.height() > 2 * this->height())
+-            offset = QPoint(cursorSize.width() / 2, 0);
++        // QPoint offset(2, cursorSize.height());
++        // // assuming an arrow shape, we can just move to the side for very large cursors
++        // if (cursorSize.height() > 2 * this->height())
++        //     offset = QPoint(cursorSize.width() / 2, 0);
+ 
+-        p += offset;
++        // p += offset;
+ 
+         QRect screenRect = screen->geometry();
+-        if (p.x() + this->width() > screenRect.x() + screenRect.width())
+-        p.rx() -= 4 + this->width();
+-        if (p.y() + this->height() > screenRect.y() + screenRect.height())
+-        p.ry() -= 24 + this->height();
++        // if (p.x() + this->width() > screenRect.x() + screenRect.width())
++        //     p.rx() -= 4 + this->width();
++        // if (p.y() + this->height() > screenRect.y() + screenRect.height())
++        //     p.ry() -= 24 + this->height();
++
++
++        int margin = 16;
++
++        switch (tipPlacement) {
++            case QToolTip::Top:
++                p.rx() -= this->width() / 2;
++                p.ry() -= 2 + this->height();
++                if (p.y() < screenRect.y())
++                    p.ry() += 2 + this->height() + margin;
++                break;
++            case QToolTip::Bottom:
++                p.rx() -= this->width() / 2;
++                p.ry() += margin;
++                if (p.y() + this->height() > screenRect.y() + screenRect.height())
++                    p.ry() -= margin + 2 + this->height();
++                break;
++            case QToolTip::Left:
++                p.rx() -= 2 + this->width();
++                p.ry() -= this->height() / 2;
++                if (p.x() < screenRect.x())
++                    p.rx() += 4 + this->width();
++                break;
++            case QToolTip::Right:
++                p.rx() += 2;
++                p.ry() -= this->height() / 2;
++                if (p.x() + this->width() > screenRect.x() + screenRect.width())
++                    p.rx() -= 4 + this->width();
++                break;
++            case QToolTip::TopLeft:
++                p -= QPoint(2 + this->width(), 2 + this->height());
++                if (p.y() < screenRect.y() && p.x() < screenRect.x()) {
++                    p.ry() += 2 + this->height() + margin;
++                    p.rx() += 4 + this->width();
++                }
++                break;
++            case QToolTip::TopRight:
++                p.rx() += 2;
++                p.ry() -= 2 + this->height();
++                if (p.y() < screenRect.y() && p.x() + this->width() > screenRect.x() + screenRect.width()) {
++                    p.ry() += 2 + this->height() + margin;
++                    p.rx() -= 4 + this->width();
++                }
++                break;
++            case QToolTip::BottomLeft:
++                p.rx() -= 2 + this->width();
++                p.ry() += margin;
++                if (p.y() + this->height() > screenRect.y() + screenRect.height() && p.x() < screenRect.x()) {
++                    p.ry() -= margin + 2 + this->height();
++                    p.rx() += 4 + this->width();
++                }
++                break;
++            case QToolTip::BottomRight:
++                p += QPoint(2, margin);
++                if (p.y() + this->height() > screenRect.y() + screenRect.height() && p.x() + this->width() > screenRect.x() + screenRect.width()) {
++                    p.ry() -= margin + 2 + this->height();
++                    p.rx() -= 4 + this->width();
++                }
++                break;
++            default:
++                break;
++        }
++
++
+         if (p.y() < screenRect.y())
+             p.setY(screenRect.y());
+         if (p.x() + this->width() > screenRect.x() + screenRect.width())
+@@ -531,6 +598,11 @@ QT_WARNING_POP
+     }
+ }
+ 
++void QToolTip::setTipPlacement(QToolTip::TipPlacement tipPlacement)
++{
++    QTipLabel::tipPlacement = tipPlacement;
++}
++
+ /*!
+     \overload
+ 
+diff --git a/src/widgets/kernel/qtooltip.h b/src/widgets/kernel/qtooltip.h
+index 1b263a6629..70a8f6b1b6 100644
+--- a/src/widgets/kernel/qtooltip.h
++++ b/src/widgets/kernel/qtooltip.h
+@@ -52,6 +52,19 @@ class Q_WIDGETS_EXPORT QToolTip
+ {
+     QToolTip() = delete;
+ public:
++    enum TipPlacement
++    {
++        Top,
++        Bottom,
++        Left,
++        Right,
++        TopLeft,
++        TopRight,
++        BottomLeft,
++        BottomRight
++    };
++    static void setTipPlacement(TipPlacement tipPlacement);
++
+     // ### Qt 6 - merge the three showText functions below
+     static void showText(const QPoint &pos, const QString &text, QWidget *w = nullptr);
+     static void showText(const QPoint &pos, const QString &text, QWidget *w, const QRect &rect);

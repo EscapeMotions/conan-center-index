@@ -1,0 +1,17 @@
+--- a/src/plugins/platforms/windows/qwindowscontext.cpp	2026-07-24 12:57:44
++++ b/src/plugins/platforms/windows/qwindowscontext.cpp	2026-07-24 12:57:44
+@@ -254,12 +254,9 @@
+ 
+ bool QWindowsContext::initTablet()
+ {
+-#if QT_CONFIG(tabletevent)
+-    d->m_tabletSupport.reset(QWindowsTabletSupport::create());
+-    return true;
+-#else
++    // WinTab disabled: the application provides its own WinTab handling, so Qt must not
++    // install QWindowsTabletSupport (which would otherwise grab the tablet context).
+     return false;
+-#endif
+ }
+ 
+ bool QWindowsContext::disposeTablet()

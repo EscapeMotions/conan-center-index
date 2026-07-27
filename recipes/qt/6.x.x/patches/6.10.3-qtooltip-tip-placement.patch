@@ -1,0 +1,153 @@
+--- a/src/widgets/kernel/qtooltip.cpp	2026-07-24 10:51:19
++++ b/src/widgets/kernel/qtooltip.cpp	2026-07-24 10:51:19
+@@ -87,6 +87,7 @@
+ */
+ 
+ QTipLabel *QTipLabel::instance = nullptr;
++static QToolTip::TipPlacement toolTipPlacement = QToolTip::BottomRight;
+ 
+ QTipLabel::QTipLabel(const QString &text, const QPoint &pos, QWidget *w, int msecDisplayTime)
+     : QLabel(w, Qt::ToolTip | Qt::BypassGraphicsProxyWidget)
+@@ -242,7 +243,7 @@
+     }
+ #endif
+     case QEvent::Leave:
+-        hideTip();
++        hideTipImmediately();
+         break;
+ 
+ 
+@@ -276,7 +277,7 @@
+ 
+     case QEvent::MouseMove:
+         if (o == widget && !rect.isNull() && !rect.contains(static_cast<QMouseEvent*>(e)->position().toPoint()))
+-            hideTip();
++            hideTipImmediately();
+         break;
+     default:
+         break;
+@@ -323,18 +324,81 @@
+         const QSize nativeSize = cursor ? cursor->size() : QSize(16, 16);
+         const QSize cursorSize = QHighDpi::fromNativePixels(nativeSize,
+                                                             platformScreen);
+-        QPoint offset(2, cursorSize.height());
+-        // assuming an arrow shape, we can just move to the side for very large cursors
+-        if (cursorSize.height() > 2 * this->height())
+-            offset = QPoint(cursorSize.width() / 2, 0);
++        // QPoint offset(2, cursorSize.height());
++        // // assuming an arrow shape, we can just move to the side for very large cursors
++        // if (cursorSize.height() > 2 * this->height())
++        //     offset = QPoint(cursorSize.width() / 2, 0);
+ 
+-        p += offset;
++        // p += offset;
+ 
+         QRect screenRect = screen->geometry();
+-        if (p.x() + this->width() > screenRect.x() + screenRect.width())
+-            p.rx() -= 4 + this->width();
+-        if (p.y() + this->height() > screenRect.y() + screenRect.height())
+-            p.ry() -= 24 + this->height();
++        // if (p.x() + this->width() > screenRect.x() + screenRect.width())
++        //     p.rx() -= 4 + this->width();
++        // if (p.y() + this->height() > screenRect.y() + screenRect.height())
++        //     p.ry() -= 24 + this->height();
++
++
++        int margin = 16;
++
++        switch (toolTipPlacement) {
++            case QToolTip::Top:
++                p.rx() -= this->width() / 2;
++                p.ry() -= 2 + this->height();
++                if (p.y() < screenRect.y())
++                    p.ry() += 2 + this->height() + margin;
++                break;
++            case QToolTip::Bottom:
++                p.rx() -= this->width() / 2;
++                p.ry() += margin;
++                if (p.y() + this->height() > screenRect.y() + screenRect.height())
++                    p.ry() -= margin + 2 + this->height();
++                break;
++            case QToolTip::Left:
++                p.rx() -= 2 + this->width();
++                p.ry() -= this->height() / 2;
++                if (p.x() < screenRect.x())
++                    p.rx() += 4 + this->width();
++                break;
++            case QToolTip::Right:
++                p.rx() += 2;
++                p.ry() -= this->height() / 2;
++                if (p.x() + this->width() > screenRect.x() + screenRect.width())
++                    p.rx() -= 4 + this->width();
++                break;
++            case QToolTip::TopLeft:
++                p -= QPoint(2 + this->width(), 2 + this->height());
++                if (p.y() < screenRect.y() && p.x() < screenRect.x()) {
++                    p.ry() += 2 + this->height() + margin;
++                    p.rx() += 4 + this->width();
++                }
++                break;
++            case QToolTip::TopRight:
++                p.rx() += 2;
++                p.ry() -= 2 + this->height();
++                if (p.y() < screenRect.y() && p.x() + this->width() > screenRect.x() + screenRect.width()) {
++                    p.ry() += 2 + this->height() + margin;
++                    p.rx() -= 4 + this->width();
++                }
++                break;
++            case QToolTip::BottomLeft:
++                p.rx() -= 2 + this->width();
++                p.ry() += margin;
++                if (p.y() + this->height() > screenRect.y() + screenRect.height() && p.x() < screenRect.x()) {
++                    p.ry() -= margin + 2 + this->height();
++                    p.rx() += 4 + this->width();
++                }
++                break;
++            case QToolTip::BottomRight:
++                p += QPoint(2, margin);
++                if (p.y() + this->height() > screenRect.y() + screenRect.height() && p.x() + this->width() > screenRect.x() + screenRect.width()) {
++                    p.ry() -= margin + 2 + this->height();
++                    p.rx() -= 4 + this->width();
++                }
++                break;
++            default:
++                break;
++        }
++
+         if (p.y() < screenRect.y())
+             p.setY(screenRect.y());
+         if (p.x() + this->width() > screenRect.x() + screenRect.width())
+@@ -444,6 +508,11 @@
+     }
+ }
+ 
++void QToolTip::setTipPlacement(QToolTip::TipPlacement tipPlacement)
++{
++    toolTipPlacement = tipPlacement;
++}
++
+ /*!
+     \fn void QToolTip::hideText()
+     \since 4.2
+--- a/src/widgets/kernel/qtooltip.h	2026-07-24 10:51:19
++++ b/src/widgets/kernel/qtooltip.h	2026-07-24 10:51:19
+@@ -15,6 +15,19 @@
+ {
+     QToolTip() = delete;
+ public:
++    enum TipPlacement
++    {
++        Top,
++        Bottom,
++        Left,
++        Right,
++        TopLeft,
++        TopRight,
++        BottomLeft,
++        BottomRight
++    };
++    static void setTipPlacement(TipPlacement tipPlacement);
++
+     static void showText(const QPoint &pos, const QString &text,
+                          QWidget *w = nullptr, const QRect &rect = {}, int msecShowTime = -1);
+     static inline void hideText() { showText(QPoint(), QString()); }

@@ -1,0 +1,29 @@
+--- a/src/widgets/styles/qstylesheetstyle.cpp	2026-07-24 12:57:44
++++ b/src/widgets/styles/qstylesheetstyle.cpp	2026-07-24 12:57:44
+@@ -2828,11 +2828,6 @@
+         if (auto widget = qobject_cast<QWidget*>(const_cast<QObject*>(object))) {
+             widget->style()->polish(widget);
+             QCoreApplication::sendEvent(widget, &event);
+-            QList<const QObject *> children;
+-            children.reserve(widget->children().size() + 1);
+-            for (auto child: std::as_const(widget->children()))
+-                children.append(child);
+-            updateObjects(children);
+         }
+     }
+ }
+@@ -3015,9 +3010,12 @@
+ 
+ void QStyleSheetStyle::repolish(QWidget *w)
+ {
++    // updateObjects() no longer recurses; enumerate the full subtree here so a per-widget
++    // stylesheet update still repolishes all descendants.
++    const QList<QObject *> descendants = w->findChildren<QObject *>();
+     QList<const QObject *> children;
+-    children.reserve(w->children().size() + 1);
+-    for (auto child: std::as_const(w->children()))
++    children.reserve(descendants.size() + 1);
++    for (auto child: std::as_const(descendants))
+         children.append(child);
+     children.append(w);
+     styleSheetCaches->styleSheetCache.remove(w);

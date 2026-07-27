@@ -1,0 +1,37 @@
+--- a/src/widgets/widgets/qdockwidget.cpp	2026-07-24 11:18:25
++++ b/src/widgets/widgets/qdockwidget.cpp	2026-07-24 11:18:25
+@@ -1920,6 +1920,22 @@
+     QDockWidgetLayout *layout
+         = qobject_cast<QDockWidgetLayout*>(this->layout());
+     return layout->widgetForRole(QDockWidgetLayout::TitleBar);
++}
++
++void QDockWidget::setPressPos(QPoint p)
++{
++    Q_D(QDockWidget);
++    if (d->state != nullptr)
++        d->state->pressPos = p;
++}
++
++QPoint QDockWidget::pressPos()
++{
++    Q_D(QDockWidget);
++    if (d->state != nullptr)
++        return d->state->pressPos;
++
++    return QPoint(0, 0);
+ }
+ 
+ #ifndef QT_NO_DEBUG_STREAM
+--- a/src/widgets/widgets/qdockwidget.h	2026-07-24 11:18:25
++++ b/src/widgets/widgets/qdockwidget.h	2026-07-24 11:18:25
+@@ -78,6 +78,9 @@
+     QAction *toggleViewAction() const;
+ #endif
+ 
++    void setPressPos(QPoint p);
++    QPoint pressPos();
++
+ Q_SIGNALS:
+     void featuresChanged(QDockWidget::DockWidgetFeatures features);
+     void topLevelChanged(bool topLevel);
