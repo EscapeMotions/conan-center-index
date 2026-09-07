@@ -13,6 +13,9 @@ patches:
     - patch_file: "patches/2.5.2-0002-fix-wstring-ifstream-gcc16.patch"
       patch_description: "fix std::wstring passed to ifstream ctor, use .c_str() for GCC 16 compatibility"
       patch_type: "portability"
+    - patch_file: "patches/2.5.2-0003-fix-ios-build.patch"
+      patch_description: "iOS/tvOS/watchOS: don't compile the macOS-only SystemMonitor implementation (IOKit graphics and the CoreGraphics display list are macOS-only), and don't cache a macOS deployment target when a toolchain file supplies one"
+      patch_type: "portability"
   "2.4.2":
     - patch_file: "patches/2.4.2-0001-fix-cmake-source-dir-and-targets.patch"
       patch_description: "use cci package, use PROJECT_BINARY_DIR/PROJECT_SOURCE_DIR"

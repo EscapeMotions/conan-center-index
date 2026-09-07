@@ -1,0 +1,62 @@
+diff --git CMakeLists.txt CMakeLists.txt
+index ddbdcf3..a7540f3 100755
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -18,9 +18,16 @@ set(CMAKE_MODULE_PATH
+ set(CMAKE_WARN_DEPRECATED ON)
+ 
+ 
+-if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
++if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET AND NOT CMAKE_TOOLCHAIN_FILE)
+     # The value of this variable should be set prior to the first project() command invocation
+     # because it may influence configuration of the toolchain and flags.
++    #
++    # At this point APPLE is already true (CMake derives it from the host) but CMAKE_SYSTEM_NAME
++    # is still empty, because a toolchain file is only read by project(). Caching a macOS version
++    # here therefore also hits iOS/tvOS/watchOS builds, where it is emitted as
++    # -miphoneos-version-min / -mios-simulator-version-min and is nonsense; and because the cache
++    # entry already exists by then, a toolchain's own non-FORCE set() can no longer correct it.
++    # So only apply this default when no toolchain file was supplied.
+     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
+ endif()
+ 
+diff --git src/OpenColorIO/SystemMonitor.cpp src/OpenColorIO/SystemMonitor.cpp
+index 7fcc9c3..dc209c9 100644
+--- src/OpenColorIO/SystemMonitor.cpp
++++ src/OpenColorIO/SystemMonitor.cpp
+@@ -12,6 +12,10 @@
+ #include "Mutex.h"
+ #include "SystemMonitor.h"
+ 
++#if defined(__APPLE__)
++#include <TargetConditionals.h>
++#endif
++
+ 
+ #ifdef OCIO_HEADLESS_ENABLED
+ 
+@@ -26,10 +30,23 @@ void SystemMonitorsImpl::getAllMonitors()
+ 
+ } // namespace OCIO_NAMESPACE
+ 
+-#elif __APPLE__
++#elif defined(__APPLE__) && TARGET_OS_OSX
+ 
+ #include "SystemMonitor_macos.cpp"
+ 
++#elif defined(__APPLE__)
++
++namespace OCIO_NAMESPACE
++{
++
++void SystemMonitorsImpl::getAllMonitors()
++{
++    // iOS, tvOS and watchOS expose neither the CoreGraphics display list nor the ColorSync
++    // device APIs used by the macOS implementation, so the list of active monitors is empty.
++}
++
++} // namespace OCIO_NAMESPACE
++
+ #elif _WIN32
+ 
+ #include "SystemMonitor_windows.cpp"
