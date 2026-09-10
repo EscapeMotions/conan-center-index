@@ -1,7 +1,7 @@
 from conan import ConanFile
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
-from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, rmdir
+from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, rmdir, replace_in_file
 
 import os
 
@@ -62,6 +62,13 @@ class LibultrahdrConan(ConanFile):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
         apply_conandata_patches(self)
 
+        # Indirect include of <cstdint> by other headers (e.g. <vector>) was removed in libstdc++ 16.2. 
+        # Make libultrahdr to include <cstdint> directly to prevent compilation errors.
+        replace_in_file(self,
+            os.path.join(self.source_folder, "lib", "include", "ultrahdr", "ultrahdrcommon.h"),
+            "#include <vector>",
+            "#include <cstdint>\n#include <vector>")
+		
     def generate(self):
         tc = CMakeToolchain(self)
 
