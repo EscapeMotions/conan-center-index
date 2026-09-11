@@ -157,7 +157,8 @@ class LibjxlConan(ConanFile):
         copy(self, "LICENSE", self.source_folder, os.path.join(self.package_folder, "licenses"))
         rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
         if self.options.shared:
-            rm(self, "*.a", os.path.join(self.package_folder, "lib"))
+            # Remove static libs, but don't remove import libs on Windows in case of MinGW, which have extension .dll.a.
+            rm(self, "*.a", os.path.join(self.package_folder, "lib"), excludes="*.dll.a")
             rm(self, "*-static.lib", os.path.join(self.package_folder, "lib"))
 
     def package_info(self):
