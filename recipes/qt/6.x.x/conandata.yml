@@ -128,4 +128,7 @@ patches:
       "patch_description": "Synthesize Enter/Leave events for accepted QTabletEvents so the system cursor hides correctly when moving the pen from menu panels back to the canvas (macOS)"
     - "patch_file": "patches/6.11.1-fix-accessibility-table-cell-oob-QTBUG-147788.patch"
       "base_path": "qtbase"
+    - "patch_file": "patches/6.11.1-fix-cgimage-colorspace-use-after-free-QTBUG-147602.patch"
+      "base_path": "qtbase"
+      "patch_description": "Backport qtbase 08e464f85597 (QTBUG-147602, in 6.11.2): qt_mac_cgImageFormatForImage returned a dangling CGColorSpaceRef, crashing QImage::toCGImage() (e.g. QCursor from a PNG) for images with a valid QColorSpace (macOS)"
 
