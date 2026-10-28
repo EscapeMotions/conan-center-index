@@ -806,6 +806,8 @@ class QtConan(ConanFile):
         elif self.settings.os == "iOS":
             args += ["-no-framework"]
             args.append(f"-sdk {self.settings.os.sdk}")
+            if self.settings.os.sdk == "iphonesimulator":
+                args.append(f"QMAKE_APPLE_SIMULATOR_ARCHS={to_apple_arch(self)}")
 
         if self.settings.get_safe("compiler.libcxx") == "libstdc++":
             args += ["-D_GLIBCXX_USE_CXX11_ABI=0"]
