@@ -165,6 +165,13 @@ class OpenSSLConan(ConanFile):
                         "&& !defined(__FreeBSD__) && !defined(__QNX__)",
                         "#if !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_CYGWIN) "
                         "&& !defined(__FreeBSD__) && !defined(__QNX__) && !defined(__MSYS__)")
+        # OpenSSL names the 64-bit MinGW DLLs libcrypto-3-x64.dll / libssl-3-x64.dll, but only when
+        # the configure target is literally "mingw64". The recipe's own target inherits from
+        # mingw64 under another name, so the suffix was lost, and Qt 5 (-openssl-runtime) loads
+        # only the -x64 names. Test the inherited multilib instead of the target name.
+        replace_in_file(self, os.path.join(self.source_folder, "Configurations", "platform", "mingw.pm"),
+                        '($config{target} eq "mingw64"',
+                        '(($target{multilib} // "") eq "64"')
 
     @property
     def _target(self):
