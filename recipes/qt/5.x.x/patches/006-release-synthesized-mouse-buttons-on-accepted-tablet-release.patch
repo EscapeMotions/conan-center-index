@@ -1,0 +1,74 @@
+diff --git a/src/gui/kernel/qguiapplication_p.h b/src/gui/kernel/qguiapplication_p.h
+--- a/src/gui/kernel/qguiapplication_p.h
++++ b/src/gui/kernel/qguiapplication_p.h
+@@ -231,9 +231,11 @@ public:
+     static QPointer<QWindow> currentDragWindow;
+ 
+     struct TabletPointData {
+-        TabletPointData(qint64 devId = 0) : deviceId(devId), state(Qt::NoButton), target(nullptr) {}
++        TabletPointData(qint64 devId = 0) : deviceId(devId), state(Qt::NoButton), synthesizedMouseButtons(Qt::NoButton), target(nullptr) {}
+         qint64 deviceId;
+         Qt::MouseButtons state;
++        // Buttons held in the mouse events synthesized from this device's tablet events
++        Qt::MouseButtons synthesizedMouseButtons;
+         QWindow *target;
+     };
+     static QVector<TabletPointData> tabletDevicePoints;
+diff --git a/src/gui/kernel/qguiapplication.cpp b/src/gui/kernel/qguiapplication.cpp
+--- a/src/gui/kernel/qguiapplication.cpp
++++ b/src/gui/kernel/qguiapplication.cpp
+@@ -2720,22 +2720,40 @@ void QGuiApplicationPrivate::processTabletEvent(QWindowSystemInterfacePrivate::T
+     tabletEvent.setTimestamp(e->timestamp);
+     QGuiApplication::sendSpontaneousEvent(window, &tabletEvent);
+     pointData.state = e->buttons;
+-    if (!tabletEvent.isAccepted()
+-        && !QWindowSystemInterfacePrivate::TabletEvent::platformSynthesizesMouse
++    if (!QWindowSystemInterfacePrivate::TabletEvent::platformSynthesizesMouse
+         && qApp->testAttribute(Qt::AA_SynthesizeMouseForUnhandledTabletEvents)) {
+-
+-        const QEvent::Type mouseType = [&]() {
+-            switch (type) {
+-            case QEvent::TabletPress:   return QEvent::MouseButtonPress;
+-            case QEvent::TabletMove:    return QEvent::MouseMove;
+-            case QEvent::TabletRelease: return QEvent::MouseButtonRelease;
+-            default: Q_UNREACHABLE();
++        if (!tabletEvent.isAccepted()) {
++            const QEvent::Type mouseType = [&]() {
++                switch (type) {
++                case QEvent::TabletPress:   return QEvent::MouseButtonPress;
++                case QEvent::TabletMove:    return QEvent::MouseMove;
++                case QEvent::TabletRelease: return QEvent::MouseButtonRelease;
++                default: Q_UNREACHABLE();
++                }
++            }();
++            QWindowSystemInterfacePrivate::MouseEvent mouseEvent(window, e->timestamp, e->local,
++                e->global, e->buttons, e->modifiers, button, mouseType, Qt::MouseEventSynthesizedByQt);
++            mouseEvent.flags |= QWindowSystemInterfacePrivate::WindowSystemEvent::Synthetic;
++            processMouseEvent(&mouseEvent);
++            pointData.synthesizedMouseButtons = e->buttons;
++        } else if (pointData.synthesizedMouseButtons & ~e->buttons) {
++            // The press of these buttons was synthesized as a mouse press, but the tablet event
++            // releasing them was accepted. Release them in the mouse state too, otherwise the
++            // mouse button state and the implicit mouse grab stay stuck until a real mouse release.
++            const Qt::MouseButtons released = pointData.synthesizedMouseButtons & ~e->buttons & mouse_buttons;
++            Qt::MouseButtons held = mouse_buttons;
++            for (int check = Qt::LeftButton; check <= int(Qt::MaxMouseButton); check = check << 1) {
++                if (!released.testFlag(Qt::MouseButton(check)))
++                    continue;
++                held &= ~Qt::MouseButtons(Qt::MouseButton(check));
++                QWindowSystemInterfacePrivate::MouseEvent mouseEvent(window, e->timestamp, e->local,
++                    e->global, held, e->modifiers, Qt::MouseButton(check), QEvent::MouseButtonRelease,
++                    Qt::MouseEventSynthesizedByQt);
++                mouseEvent.flags |= QWindowSystemInterfacePrivate::WindowSystemEvent::Synthetic;
++                processMouseEvent(&mouseEvent);
+             }
+-        }();
+-        QWindowSystemInterfacePrivate::MouseEvent mouseEvent(window, e->timestamp, e->local,
+-            e->global, e->buttons, e->modifiers, button, mouseType, Qt::MouseEventSynthesizedByQt);
+-        mouseEvent.flags |= QWindowSystemInterfacePrivate::WindowSystemEvent::Synthetic;
+-        processMouseEvent(&mouseEvent);
++            pointData.synthesizedMouseButtons &= e->buttons;
++        }
+     }
+ #else
+     Q_UNUSED(e)

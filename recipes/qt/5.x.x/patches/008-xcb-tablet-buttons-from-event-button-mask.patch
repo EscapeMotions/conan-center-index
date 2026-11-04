@@ -1,0 +1,50 @@
+diff --git a/src/plugins/platforms/xcb/qxcbconnection_xi2.cpp b/src/plugins/platforms/xcb/qxcbconnection_xi2.cpp
+--- a/src/plugins/platforms/xcb/qxcbconnection_xi2.cpp
++++ b/src/plugins/platforms/xcb/qxcbconnection_xi2.cpp
+@@ -1283,20 +1283,36 @@ bool QXcbConnection::xi2HandleTabletEvent(const void *event, TabletData *tabletD
+     bool handled = true;
+     const auto *xiDeviceEvent = reinterpret_cast<const qt_xcb_input_device_event_t *>(event);
+ 
++    // The event's button mask holds the server's button state before the event. Following it
++    // instead of only accumulating presses and releases keeps the buttons from getting stuck
++    // when a press or release isn't delivered to us.
++    const auto buttonsBeforeEvent = [&]() -> Qt::MouseButtons {
++        if (xiDeviceEvent->buttons_len == 0)
++            return tabletData->buttons;
++        const auto *buttonsMask = reinterpret_cast<const unsigned char *>(&xiDeviceEvent[1]);
++        Qt::MouseButtons buttons;
++        for (uint32_t i = 1; i < uint32_t(xiDeviceEvent->buttons_len) * 32; ++i) {
++            if (buttonsMask[i >> 3] & (1 << (i & 7)))
++                buttons |= xiToQtMouseButton(i);
++        }
++        return buttons;
++    };
++
+     switch (xiDeviceEvent->event_type) {
+     case XCB_INPUT_BUTTON_PRESS: {
+         Qt::MouseButton b = xiToQtMouseButton(xiDeviceEvent->detail);
+-        tabletData->buttons |= b;
++        tabletData->buttons = buttonsBeforeEvent() | b;
+         xi2ReportTabletEvent(event, tabletData);
+         break;
+     }
+     case XCB_INPUT_BUTTON_RELEASE: {
+         Qt::MouseButton b = xiToQtMouseButton(xiDeviceEvent->detail);
+-        tabletData->buttons ^= b;
++        tabletData->buttons = buttonsBeforeEvent() & ~Qt::MouseButtons(b);
+         xi2ReportTabletEvent(event, tabletData);
+         break;
+     }
+     case XCB_INPUT_MOTION:
++        tabletData->buttons = buttonsBeforeEvent();
+         xi2ReportTabletEvent(event, tabletData);
+         break;
+     case XCB_INPUT_PROPERTY: {
+@@ -1334,6 +1350,7 @@ bool QXcbConnection::xi2HandleTabletEvent(const void *event, TabletData *tabletD
+                                 tabletData->tool, tabletData->pointerType, tabletData->serialId);
+                         } else {
+                             tabletData->inProximity = false;
++                            tabletData->buttons = Qt::NoButton;
+                             tabletData->tool = toolIdToTabletDevice(ptr[_WACSER_LAST_TOOL_ID]);
+                             // Workaround for http://sourceforge.net/p/linuxwacom/bugs/246/
+                             // e.g. on Thinkpad Helix, tool ID will be 0 and serial will be 1

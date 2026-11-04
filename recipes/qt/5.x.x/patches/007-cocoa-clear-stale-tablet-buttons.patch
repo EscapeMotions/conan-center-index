@@ -1,0 +1,21 @@
+diff --git a/src/plugins/platforms/cocoa/qnsview_tablet.mm b/src/plugins/platforms/cocoa/qnsview_tablet.mm
+--- a/src/plugins/platforms/cocoa/qnsview_tablet.mm
++++ b/src/plugins/platforms/cocoa/qnsview_tablet.mm
+@@ -84,6 +84,17 @@ Q_GLOBAL_STATIC(QCocoaTabletDeviceDataHash, tabletDeviceDataHash)
+ 
+     bool down = (eventType != NSEventTypeMouseMoved);
+ 
++    // m_buttons is only updated by the mouse down/up handlers. If an up event never arrives (seen
++    // with a pen side button), the button stays recorded and every later pen lift becomes a release
++    // that still holds it, so the tablet target is never released. The pen reports its physical
++    // buttons with every tablet event: when it holds none and doesn't touch the tablet, nothing
++    // pressed with it can still be down.
++    if (m_buttons != Qt::NoButton && [theEvent buttonMask] == 0 && [theEvent pressure] == 0) {
++        qCDebug(lcQpaTablet) << "clearing stale buttons" << m_buttons << "on a tablet event of type" << eventType;
++        m_buttons = Qt::NoButton;
++        m_sendUpAsRightButton = false;
++    }
++
+     qreal pressure;
+     if (down) {
+         pressure = [theEvent pressure];
