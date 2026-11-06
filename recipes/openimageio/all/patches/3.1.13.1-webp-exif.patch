@@ -1,5 +1,5 @@
---- src/webp.imageio/webpinput.cpp	2026-11-05 14:52:29.156495762 +0100
-+++ src/webp.imageio/webpinput.cpp	2026-11-05 14:52:43.848690296 +0100
+--- src/webp.imageio/webpinput.cpp
++++ src/webp.imageio/webpinput.cpp
 @@ -181,9 +181,23 @@
      WebPChunkIterator chunk_iter;
      if (m_demux_flags & EXIF_FLAG
@@ -27,9 +27,9 @@
          WebPDemuxReleaseChunkIterator(&chunk_iter);
      }
      if (m_demux_flags & XMP_FLAG
---- src/webp.imageio/webpoutput.cpp	2026-11-05 14:52:29.156581962 +0100
-+++ src/webp.imageio/webpoutput.cpp	2026-11-05 14:52:43.848532996 +0100
-@@ -10,12 +10,41 @@
+--- src/webp.imageio/webpoutput.cpp
++++ src/webp.imageio/webpoutput.cpp
+@@ -10,12 +10,49 @@
  #include <OpenImageIO/filesystem.h>
  #include <OpenImageIO/imagebufalgo.h>
  #include <OpenImageIO/imageio.h>
@@ -54,10 +54,18 @@
 +    string_view resunit = spec.get_string_attribute("ResolutionUnit");
 +    if (Strutil::iequals(resunit, "none"))
 +        exifspec.attribute("ResolutionUnit", 1);
-+    else if (Strutil::iequals(resunit, "in") || Strutil::iequals(resunit, "inch"))
++    else if (Strutil::iequals(resunit, "in")
++             || Strutil::iequals(resunit, "inch"))
 +        exifspec.attribute("ResolutionUnit", 2);
 +    else if (Strutil::iequals(resunit, "cm"))
 +        exifspec.attribute("ResolutionUnit", 3);
++    // Exif stores the resolution as a RATIONAL, which encode_exif() writes
++    // only from a float. Accept other numeric types, as the other writers do.
++    for (const char* name : { "XResolution", "YResolution" }) {
++        const ParamValue* p = spec.find_attribute(name);
++        if (p && p->type() != TypeFloat)
++            exifspec.attribute(name, p->get_float());
++    }
 +
 +    std::vector<char> blob;
 +    encode_exif(exifspec, blob, endian::little);
@@ -71,7 +79,7 @@
  class WebpOutput final : public ImageOutput {
  public:
      WebpOutput() { init(); }
-@@ -152,11 +181,14 @@
+@@ -152,11 +189,14 @@
          icc_data_length = icc_profile_parameter->type().size();
          has_icc_data    = (icc_data && icc_data_length > 0);
      }
@@ -89,7 +97,7 @@
          WebPMemoryWriterInit(&wrt);
          m_webp_picture.writer     = WebPMemoryWrite;
          m_webp_picture.custom_ptr = &wrt;
-@@ -186,25 +218,33 @@
+@@ -186,25 +226,33 @@
  
      if (!WebPEncode(&m_webp_config, &m_webp_picture)) {
          errorfmt("Failed to encode {} as WebP image", m_filename);
@@ -120,9 +128,9 @@
 +            WebPMuxSetChunk(mux, "ICCP", &icc_chunk, false);
 +        }
 +        if (has_exif_data) {
-+            WebPData exif_chunk = { reinterpret_cast<const uint8_t*>(
-+                                        exif.data()),
-+                                    exif.size() };
++            WebPData exif_chunk = {
++                reinterpret_cast<const uint8_t*>(exif.data()), exif.size()
++            };
 +            WebPMuxSetChunk(mux, "EXIF", &exif_chunk, false);
 +        }
  
