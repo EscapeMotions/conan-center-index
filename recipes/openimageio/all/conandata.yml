@@ -8,5 +8,6 @@ sources:
 patches:
   "3.1.13.1":
     - patch_file: "patches/3.1.13.1-conan-fixes.patch"
+    - patch_file: "patches/3.1.13.1-webp-exif.patch"
   "2.5.19.1":
     - patch_file: "patches/2.5.19.1-conan-fixes.patch"
