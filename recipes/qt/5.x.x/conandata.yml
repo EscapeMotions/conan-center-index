@@ -63,7 +63,7 @@ patches:
       "patch_description": "Release mouse buttons synthesized from unaccepted tablet presses when the matching tablet release is accepted, so the mouse button state and implicit grab don't stick"
       "patch_file": "patches/006-release-synthesized-mouse-buttons-on-accepted-tablet-release.patch"
     - "base_path": "qt5/qtbase"
-      "patch_description": "cocoa: clear QNSView's recorded mouse buttons when a tablet event reports no pen buttons and no pressure, so a lost pen side-button release can't keep all pen events on the tablet target (macOS)"
+      "patch_description": "cocoa: clear QNSView's recorded mouse buttons on a tablet hover move while the system reports no mouse button pressed, so a lost pen side-button release can't keep all pen events on the tablet target (macOS)"
       "patch_file": "patches/007-cocoa-clear-stale-tablet-buttons.patch"
     - "base_path": "qt5/qtbase"
       "patch_description": "xcb: take tablet buttons from the XI2 event's button mask instead of toggling them per press/release, and reset them on proximity out (Linux)"
