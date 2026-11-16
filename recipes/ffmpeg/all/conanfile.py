@@ -70,6 +70,8 @@ class FFMpegConan(ConanFile):
         "with_vaapi": [True, False],
         "with_vdpau": [True, False],
         "with_nvenc": [True, False],
+        "with_libvpl": [True, False],
+        "with_amf": [True, False],
         "with_vulkan": [True, False],
         "with_whisper": [True, False],
         "with_xcb": [True, False],
@@ -163,6 +165,8 @@ class FFMpegConan(ConanFile):
         "with_vaapi": True,
         "with_vdpau": True,
         "with_nvenc": False,
+        "with_libvpl": False,
+        "with_amf": False,
         "with_vulkan": False,
         "with_whisper": False,
         "with_xcb": True,
@@ -240,6 +244,8 @@ class FFMpegConan(ConanFile):
             "with_vorbis": ["avcodec"],
             "with_opus": ["avcodec"],
             "with_libx264": ["avcodec"],
+            "with_libvpl": ["avcodec"],
+            "with_amf": ["avcodec"],
             "with_libx265": ["avcodec"],
             "with_libvpx": ["avcodec"],
             "with_libmp3lame": ["avcodec"],
@@ -286,6 +292,8 @@ class FFMpegConan(ConanFile):
             del self.options.with_libdrm
         if self.settings.os not in ["Linux", "Windows"]:
             del self.options.with_nvenc
+            del self.options.with_libvpl
+            del self.options.with_amf
         if self.settings.os != "Macos":
             del self.options.with_appkit
         if self.settings.os not in ["Macos", "iOS", "tvOS"]:
@@ -374,6 +382,14 @@ class FFMpegConan(ConanFile):
             # NVENC: header-only; ffmpeg loads the driver's libnvidia-encode / nvEncodeAPI64.dll
             # and libcuda / nvcuda.dll at runtime. 12.1 needs driver 530.41 (Linux) / 531.61 (Windows).
             self.requires("nv-codec-headers/12.1.14.0")
+        if self.options.get_safe("with_libvpl"):
+            # Intel Quick Sync Video (h264_qsv, hevc_qsv): the oneVPL dispatcher, which loads the
+            # GPU runtime installed with Intel's driver (libmfx-gen / libmfx64-gen.dll) at runtime.
+            self.requires("libvpl/2.17.0")
+        if self.options.get_safe("with_amf"):
+            # AMD AMF (h264_amf, hevc_amf): header-only; ffmpeg loads the driver's amfrt64.dll
+            # (libamfrt64.so.1 on Linux) at runtime.
+            self.requires("amf-headers/1.5.2")
         if self.options.get_safe("with_vulkan"):
             self.requires("vulkan-loader/1.3.243.0")
         if self.options.get_safe("with_libsvtav1"):
@@ -393,6 +409,8 @@ class FFMpegConan(ConanFile):
         if self.options.with_ssl == "securetransport" and not is_apple_os(self):
             raise ConanInvalidConfiguration(
                 "securetransport is only available on Apple")
+        if self.settings.os == "Linux" and self.options.get_safe("with_libvpl") and not self.options.get_safe("with_vaapi"):
+            raise ConanInvalidConfiguration("FFmpeg 'with_libvpl' option requires 'with_vaapi' on Linux (QSV runs on VAAPI there)")
 
         for dependency, features in self._dependencies.items():
             if not self.options.get_safe(dependency):
@@ -580,6 +598,8 @@ class FFMpegConan(ConanFile):
             "--disable-cuda-llvm",
             "--disable-cuvid",  # FIXME: CUVID support
             "--disable-nvdec",
+            opt_enable_disable("libvpl", self.options.get_safe("with_libvpl")),
+            opt_enable_disable("amf", self.options.get_safe("with_amf")),
             # Licenses
             opt_enable_disable("nonfree", self.options.get_safe("with_libfdk_aac") or (self.options.with_ssl and (
                 self.options.with_libx264 or self.options.with_libx265 or self.options.get_safe("postproc")))),
@@ -1035,6 +1055,12 @@ class FFMpegConan(ConanFile):
 
         if self.options.get_safe("with_nvenc"):
             avutil.requires.append("nv-codec-headers::nv-codec-headers")
+
+        if self.options.get_safe("with_libvpl"):
+            avutil.requires.append("libvpl::dispatcher")
+
+        if self.options.get_safe("with_amf"):
+            avutil.requires.append("amf-headers::amf-headers")
 
         if self.options.with_ssl == "openssl":
             avutil.requires.append("openssl::ssl")
