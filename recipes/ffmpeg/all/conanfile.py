@@ -69,6 +69,7 @@ class FFMpegConan(ConanFile):
         "with_pulse": [True, False],
         "with_vaapi": [True, False],
         "with_vdpau": [True, False],
+        "with_nvenc": [True, False],
         "with_vulkan": [True, False],
         "with_whisper": [True, False],
         "with_xcb": [True, False],
@@ -161,6 +162,7 @@ class FFMpegConan(ConanFile):
         "with_pulse": True,
         "with_vaapi": True,
         "with_vdpau": True,
+        "with_nvenc": False,
         "with_vulkan": False,
         "with_whisper": False,
         "with_xcb": True,
@@ -282,6 +284,8 @@ class FFMpegConan(ConanFile):
             del self.options.with_pulse
             del self.options.with_xlib
             del self.options.with_libdrm
+        if self.settings.os not in ["Linux", "Windows"]:
+            del self.options.with_nvenc
         if self.settings.os != "Macos":
             del self.options.with_appkit
         if self.settings.os not in ["Macos", "iOS", "tvOS"]:
@@ -366,6 +370,10 @@ class FFMpegConan(ConanFile):
             self.requires("libva/2.23.0")
         if self.options.get_safe("with_vdpau"):
             self.requires("vdpau/system")
+        if self.options.get_safe("with_nvenc"):
+            # NVENC: header-only; ffmpeg loads the driver's libnvidia-encode / nvEncodeAPI64.dll
+            # and libcuda / nvcuda.dll at runtime. 12.1 needs driver 530.41 (Linux) / 531.61 (Windows).
+            self.requires("nv-codec-headers/12.1.14.0")
         if self.options.get_safe("with_vulkan"):
             self.requires("vulkan-loader/1.3.243.0")
         if self.options.get_safe("with_libsvtav1"):
@@ -564,8 +572,14 @@ class FFMpegConan(ConanFile):
             opt_enable_disable("jni", self.options.get_safe("with_jni")),
             opt_enable_disable("mediacodec", self.options.get_safe("with_mediacodec")),
             opt_enable_disable("xlib", self.options.get_safe("with_xlib")),
-            "--disable-cuda",  # FIXME: CUDA support
+            # ffnvcodec (nv-codec-headers) for the NVENC encoders and the CUDA hwcontext they use;
+            # CUVID decoding stays off.
+            opt_enable_disable("ffnvcodec", self.options.get_safe("with_nvenc")),
+            opt_enable_disable("nvenc", self.options.get_safe("with_nvenc")),
+            opt_enable_disable("cuda", self.options.get_safe("with_nvenc")),
+            "--disable-cuda-llvm",
             "--disable-cuvid",  # FIXME: CUVID support
+            "--disable-nvdec",
             # Licenses
             opt_enable_disable("nonfree", self.options.get_safe("with_libfdk_aac") or (self.options.with_ssl and (
                 self.options.with_libx264 or self.options.with_libx265 or self.options.get_safe("postproc")))),
@@ -1018,6 +1032,9 @@ class FFMpegConan(ConanFile):
 
         if self.options.get_safe("with_vdpau"):
             avutil.requires.append("vdpau::vdpau")
+
+        if self.options.get_safe("with_nvenc"):
+            avutil.requires.append("nv-codec-headers::nv-codec-headers")
 
         if self.options.with_ssl == "openssl":
             avutil.requires.append("openssl::ssl")
