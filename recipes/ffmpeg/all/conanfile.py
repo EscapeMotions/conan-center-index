@@ -361,7 +361,9 @@ class FFMpegConan(ConanFile):
         if self.options.get_safe("with_pulse"):
             self.requires("pulseaudio/14.2")
         if self.options.get_safe("with_vaapi"):
-            self.requires("vaapi/system")
+            # libva from source instead of the system's libva-dev: the same version on every
+            # build machine, and it can be shipped with the ffmpeg binary.
+            self.requires("libva/2.23.0")
         if self.options.get_safe("with_vdpau"):
             self.requires("vdpau/system")
         if self.options.get_safe("with_vulkan"):
@@ -1006,7 +1008,11 @@ class FFMpegConan(ConanFile):
         if self.options.get_safe("with_libdrm"):
             avutil.requires.append("libdrm::libdrm_libdrm")
         if self.options.get_safe("with_vaapi"):
-            avutil.requires.append("vaapi::vaapi")
+            avutil.requires.append("libva::libva_")
+            if self.dependencies["libva"].options.get_safe("with_drm"):
+                avutil.requires.append("libva::libva-drm")
+            if self.dependencies["libva"].options.get_safe("with_x11"):
+                avutil.requires.append("libva::libva-x11")
         if self.options.get_safe("with_xcb"):
             avutil.requires.append("xorg::x11")
 
