@@ -1,0 +1,40 @@
+Backport of qtbase 789c55920c4a (dev, Change-Id I74a4b3543bdb0279fc04cc10fbc6fb395e5ae623,
+picked to 6.12/6.11/6.8; not in 6.11.1). Drop this patch when moving to a Qt release that has it.
+Subject: [PATCH] iOS: Guard against null-focusObject during selection query
+
+querySelection() and -[QIOSTextResponder hasSelection] sent a
+QInputMethodQueryEvent to QGuiApplication::focusObject() without checking it.
+The selection recognizer's 1 ms update timer stays armed when the focus window
+is destroyed without a focusObjectChanged notification (e.g. a floating
+QDockWidget dropped back into the main window), so the timer queried a null
+focus object: EXC_BAD_ACCESS at 0x8 in QCoreApplication::sendEvent <-
+querySelection <- -[QIOSSelectionRecognizer updateSelection].
+
+diff --git a/src/plugins/platforms/ios/qiostextinputoverlay.mm b/src/plugins/platforms/ios/qiostextinputoverlay.mm
+index 6fb8e2639e34..b843ed0b1fa0 100644
+--- a/src/plugins/platforms/ios/qiostextinputoverlay.mm
++++ b/src/plugins/platforms/ios/qiostextinputoverlay.mm
+@@ -32,6 +32,9 @@
+ 
+ static SelectionPair querySelection()
+ {
++    if (!QGuiApplication::focusObject())
++        return {};
++
+     QInputMethodQueryEvent query(Qt::ImAnchorPosition | Qt::ImCursorPosition);
+     QGuiApplication::sendEvent(QGuiApplication::focusObject(), &query);
+     int anchorPos = query.value(Qt::ImAnchorPosition).toInt();
+diff --git a/src/plugins/platforms/ios/qiostextresponder.mm b/src/plugins/platforms/ios/qiostextresponder.mm
+index f189155ddaa6..0286c9ecb3b2 100644
+--- a/src/plugins/platforms/ios/qiostextresponder.mm
++++ b/src/plugins/platforms/ios/qiostextresponder.mm
+@@ -282,6 +282,9 @@ - (void)sendShortcut:(QKeySequence::StandardKey)standardKey
+ 
+ - (BOOL)hasSelection
+ {
++    if (!QGuiApplication::focusObject())
++        return false;
++
+     QInputMethodQueryEvent query(Qt::ImAnchorPosition | Qt::ImCursorPosition);
+     QGuiApplication::sendEvent(QGuiApplication::focusObject(), &query);
+     int anchorPos = query.value(Qt::ImAnchorPosition).toInt();
