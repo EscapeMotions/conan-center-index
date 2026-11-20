@@ -1,0 +1,26 @@
+Not upstream (no QTBUG, unfixed on qtbase dev as of 2026-11). Same kind of guard as qtbase
+c8943447d353 "iOS: Guard against hover events during window destruction". Drop this patch
+when moving to a Qt release whose -[QUIView handlePresses:eventType:] checks platformWindow.
+Subject: [PATCH] iOS: Guard against key presses during window destruction
+
+UIKit delivers pressesEnded to the responder that received pressesBegan. When
+the key press closes a window (a QShortcut or a dialog's Escape/Enter on press),
+~QIOSWindow clears the QUIView's platformWindow, and the release reaches
+handlePresses, which only checked qApp->focusWindow() and then dereferenced the
+null platformWindow: EXC_BAD_ACCESS at 0x18 in -[QUIView handlePresses:eventType:]
+<- -[QUIView pressesEnded:withEvent:]. Returning false passes the presses on to
+the next responder.
+
+diff --git a/src/plugins/platforms/ios/quiview.mm b/src/plugins/platforms/ios/quiview.mm
+index 2d22362..c357fc4 100644
+--- a/src/plugins/platforms/ios/quiview.mm
++++ b/src/plugins/platforms/ios/quiview.mm
+@@ -672,7 +672,7 @@ inline ulong getTimeStamp(UIEvent *event)
+     // this event will cause the application to return to Headboard (tvOS launcher).
+     // When handling the event (for example, as a back button), both press and
+     // release events must be handled accordingly.
+-    if (!qApp->focusWindow())
++    if (!self.platformWindow || !qApp->focusWindow())
+         return false;
+ 
+     bool eventHandled = false;
