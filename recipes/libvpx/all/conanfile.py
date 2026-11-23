@@ -188,6 +188,11 @@ class LibVPXConan(ConanFile):
             env.define("CC", "")
         else:
             env = tc.environment()
+            if str(self.settings.arch) in ["x86", "x86_64"]:
+                # On Apple, AutotoolsToolchain puts clang flags (-arch, -isysroot, -mmacosx-version-min)
+                # into ASFLAGS. libvpx's configure hands ASFLAGS to yasm (x86 only), which reads
+                # "-arch" as "-a rch" and fails; configure already gives yasm its object format.
+                env.unset("ASFLAGS")
         tc.generate(env)
 
     def _patch_sources(self):

@@ -131,7 +131,12 @@ class LibX264Conan(ConanFile):
         if extra_ldflags:
             args["--extra-ldflags"] = " ".join(extra_ldflags)
         tc.update_configure_args(args)
-        tc.generate()
+        env = tc.environment()
+        if self._with_nasm:
+            # On Apple, AutotoolsToolchain puts clang flags (-m64, -arch, -isysroot) into ASFLAGS,
+            # which configure passes to nasm; nasm rejects them and configure reports nasm as too old.
+            env.unset("ASFLAGS")
+        tc.generate(env)
 
     def build(self):
         with chdir(self, self.source_folder):
