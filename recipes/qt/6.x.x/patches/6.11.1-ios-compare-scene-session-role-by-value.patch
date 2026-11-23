@@ -1,0 +1,24 @@
+Not upstream (no QTBUG, unchanged on qtbase dev as of 2026-11). Drop this patch when moving
+to a Qt release whose -[QIOSViewController updatePlatformScreen] compares the scene role
+with isEqualToString:.
+Subject: [PATCH] iOS: Compare the scene session role by value
+
+updatePlatformScreen compared windowScene.session.role with
+UIWindowSceneSessionRoleApplication using ==, which compares the NSString
+pointers. On iPadOS 27 the session returns a copy of the string, so
+isPrimaryScene was false: the screen of the scene never became the primary
+QScreen and existing windows were not adopted. In windowed mode with a window
+smaller than the display, the scene is on its own UIScreen, so windows created
+later went to the main screen, which has no scene, and the app stayed black.
+
+--- a/src/plugins/platforms/ios/qiosviewcontroller.mm
++++ b/src/plugins/platforms/ios/qiosviewcontroller.mm
+@@ -341,7 +341,7 @@
+         QScreen *newScreen = newPlatformScreen ? newPlatformScreen->screen() : nullptr;
+ 
+         const bool isPrimaryScene = !qt_apple_sharedApplication().supportsMultipleScenes
+-            && windowScene.session.role == UIWindowSceneSessionRoleApplication;
++            && [windowScene.session.role isEqualToString:UIWindowSceneSessionRoleApplication];
+ 
+         if (isPrimaryScene) {
+             // When we only have a single application-role scene we treat the

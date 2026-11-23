@@ -137,4 +137,7 @@ patches:
     - "patch_file": "patches/6.11.1-ios-guard-null-platformwindow-in-handlepresses.patch"
       "base_path": "qtbase"
       "patch_description": "iOS: -[QUIView handlePresses:eventType:] dereferenced a null platformWindow when a key press closed its window (shortcut or dialog Escape/Enter), crashing on that key's release (not upstream; same guard as qtbase c8943447d353 for hover)"
+    - "patch_file": "patches/6.11.1-ios-compare-scene-session-role-by-value.patch"
+      "base_path": "qtbase"
+      "patch_description": "iOS: updatePlatformScreen compared the scene session role with == (NSString pointers); iPadOS 27 returns a copy, so the scene's screen never became the primary QScreen and the app stayed black when launched into a window smaller than the display (not upstream)"
 
