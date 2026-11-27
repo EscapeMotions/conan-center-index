@@ -1,0 +1,50 @@
+Subject: [PATCH] SecurityScopedFileEngineHandler: check sandbox and bundle paths before realpath()
+
+In a sandboxed app (always on iOS) the handler is asked about every QFile,
+QFileInfo, QDir and QSettings path. create() resolved the canonical path with
+realpath() first and only then returned nullptr for paths inside the sandbox
+container or the app bundle, which is nearly every path an app touches.
+realpath() costs several file system calls per path component, which made it
+roughly half of the main-thread time of Rebelle's iOS launch.
+
+Check the cleaned absolute path against the two roots first and return early.
+The canonical-path checks stay for paths that only resolve into the roots
+through symlinks. A symlink inside the container that points at a bookmarked
+location outside it is no longer looked up.
+
+--- a/src/corelib/platform/darwin/qdarwinsecurityscopedfileengine.mm	2026-10-30 13:27:45
++++ b/src/corelib/platform/darwin/qdarwinsecurityscopedfileengine.mm	2026-10-30 13:27:45
+@@ -358,6 +358,20 @@
+                                  << engine.get() << "for" << fileName;
+             return engine;
+         }
++    }
++
++    static const QString sandboxRoot = QString::fromNSString(NSHomeDirectory());
++    static const QString bundleRoot = QString::fromNSString(NSBundle.mainBundle.bundlePath);
++
++    // Files inside the sandbox container or the application's own bundle can
++    // always be accessed directly. Check the absolute path first, because
++    // resolving the canonical path below costs several file system calls per
++    // path component, and nearly every file an app opens is in one of these.
++    {
++        const QString absolutePath = QDir::cleanPath(
++            QFileSystemEngine::absoluteName(fileSystemEntry).filePath());
++        if (absolutePath.startsWith(sandboxRoot) || absolutePath.startsWith(bundleRoot))
++            return nullptr;
+     }
+ 
+     // We're mapping the file name to existing bookmarks below, so make sure
+@@ -386,12 +400,10 @@
+     QString filePath = QDir::cleanPath(canonicalEntry.filePath());
+ 
+     // Files inside the sandbox container can always be accessed directly
+-    static const QString sandboxRoot = QString::fromNSString(NSHomeDirectory());
+     if (filePath.startsWith(sandboxRoot))
+         return nullptr;
+ 
+     // The same applies to files inside the application's own bundle
+-    static const QString bundleRoot = QString::fromNSString(NSBundle.mainBundle.bundlePath);
+     if (filePath.startsWith(bundleRoot))
+         return nullptr;
+ 
